@@ -1035,11 +1035,41 @@ module dftbp_initprogram
   integer :: nDet =1
   integer :: det =1
 
+  !> Is this an ROKS calculation?
+  logical :: tROKS
 
+  !> qInput from mixed density matrix for ROKS
+  real(dp), allocatable :: qMixIn(:, :, :)
+  
+  !> qInput from triplet density matrix for ROKS
+  real(dp), allocatable :: qTripIn(:, :, :)
 
+  !> qInpRed for mixed determinant for ROKS
+  real(dp), allocatable :: qMixInpRed(:)
 
+  !> qInpRed for triplet determinant for ROKS
+  real(dp), allocatable :: qTripInpRed(:)
+  
+  !> Third order energy correction for mixed determinant for ROKS
+  type(ThirdOrder), allocatable :: mixThirdOrd
 
+  !> Third order energy correction for triplet determinant for ROKS
+  type(ThirdOrder), allocatable :: tripThirdOrd
+  
+  !> Sparse mixed Hamiltonian for ROKS
+  real(dp), allocatable :: mixHam(:,:)
 
+  !> Sparse triplet Hamiltonian for ROKS
+  real(dp), allocatable :: tripHam(:,:)
+
+  !> Sparse density matrix for mixed determinant for ROKS
+  real(dp), allocatable :: rhoMixPrim(:,:)
+
+  !> Sparse density matrix for triplet determinant for ROKS
+  real(dp), allocatable :: rhoTripPrim(:,:)
+
+  !> Maximum iterations for ROKS loops
+  integer :: maxROKSIter
 
 contains
 
@@ -1233,7 +1263,9 @@ contains
     tSpinPurify = input%ctrl%tSpinPurify
     tMOM = input%ctrl%tMOM
     tGroundGuess = input%ctrl%tGroundGuess
-
+    tROKS = input%ctrl%tROKS
+    
+    
     ! Brillouin zone sampling
     if (tPeriodic) then
       nKPoint = input%ctrl%nKPoint
@@ -1288,6 +1320,12 @@ contains
     end if
     tFracCoord = input%geom%tFracCoord
 
+    if (tROKS) then
+      maxROKSIter = 2
+    else
+      maxROKSIter = 1
+    end if   
+    
     if (tSccCalc) then
       maxSccIter = input%ctrl%maxIter
     else
@@ -1516,6 +1554,12 @@ contains
         thirdInp%shellResolved = input%ctrl%tShellResolved
         allocate(thirdOrd)
         call ThirdOrder_init(thirdOrd, thirdInp)
+        if (tROKS) then
+          allocate(mixThirdOrd)
+          allocate(tripThirdOrd)
+          call ThirdOrder_init(mixThirdOrd, thirdInp)
+          call ThirdOrder_init(tripThirdOrd, thirdInp)
+        end if
         cutOff%mCutOff = max(cutOff%mCutOff, thirdOrd%getCutOff())
       end if
     end if
@@ -1559,6 +1603,10 @@ contains
        allocate(chargePerShell(0,0,0))
     end if
     allocate(ham(0, nSpin))
+    if (tROKS) then
+      allocate(mixHam(0,nSpin))
+      allocate(tripHam(0,nSpin))
+    end if
     if (tImHam) then
       allocate(iHam(0, nSpin))
     end if
@@ -2279,7 +2327,7 @@ contains
       call Xlbomd_init(xlbomdIntegrator, input%ctrl%xlbomd, nIneqOrb)
     end if
 
-    minSccIter = getMinSccIters(tSccCalc, tDftbU, nSpin)
+    minSccIter = getMinSccIters(tSccCalc, tDftbU, nSpin, tROKS)
     if (tXlbomd) then
       call xlbomdIntegrator%setDefaultSCCParameters(minSccIter, maxSccIter, sccTol)
     end if
@@ -2317,6 +2365,13 @@ contains
     qInput(:,:,:) = 0.0_dp
     qOutput(:,:,:) = 0.0_dp
 
+    if (tROKS) then
+       allocate(qMixIn(orb%mOrb, nAtom, nSpin))
+       allocate(qTripIn(orb%mOrb, nAtom, nSpin))
+       qMixIn(:,:,:) = 0.0_dp
+       qTripIn(:,:,:) = 0.0_dp
+    end if
+
     if (tMixBlockCharges) then
       allocate(qBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
       allocate(qBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
@@ -2340,8 +2395,14 @@ contains
       qDiffRed = 0.0_dp
       qInpRed = 0.0_dp
       qOutRed = 0.0_dp
+      if (tROKS) then
+        allocate(qTripInpRed(nMixElements))
+        allocate(qMixInpRed(nMixElements))
+        qTripInpRed = 0.0_dp
+        qMixInpRed = 0.0_dp
+      end if
     end if
-
+     
     tReadChrg = input%ctrl%tReadChrg
 
     if (tRangeSep) then
@@ -2399,13 +2460,27 @@ contains
             call warning(strTmp)
           end if
           call initQFromAtomChrg(qInput, input%ctrl%initialCharges, referenceN0, species0,&
-              & speciesName, orb)
+               & speciesName, orb)
+          if (tROKS) then
+            call initQFromAtomChrg(qMixIn, input%ctrl%initialCharges, referenceN0, species0,&
+                 & speciesName, orb)
+            call initQFromAtomChrg(qTripIn, input%ctrl%initialCharges, referenceN0, species0,&
+                 & speciesName, orb)
+          end if 
         else
           qInput(:,:,:) = q0
+          if (tROKS) then
+            qMixIn(:,:,:) = q0
+            qTripIn(:,:,:) = q0
+          end if
         end if
         if (.not. tSkipChrgChecksum) then
           ! Rescaling to ensure correct number of electrons in the system
           qInput(:,:,1) = qInput(:,:,1) *  sum(nEl) / sum(qInput(:,:,1))
+          if (tROKS) then
+            qMixIn(:,:,1) = qMixIn(:,:,1) * sum(nEl) / sum(qMixIn(:,:,1))
+            qTripIn(:,:,1) = qTripIn(:,:,1) * sum(nEl) / sum(qTripIn(:,:,1))
+          end if
         end if
 
         select case (nSpin)
@@ -2419,12 +2494,24 @@ contains
               ! iterations
               qInput(1:orb%nOrbAtom(ii),ii,2) = qInput(1:orb%nOrbAtom(ii),ii,1)&
                   & * input%ctrl%initialSpins(1,ii) / sum(qInput(1:orb%nOrbAtom(ii),ii,1))
+              if (tROKS) then
+                qMixIn(1:orb%nOrbAtom(ii),ii,2) = qMixIn(1:orb%nOrbAtom(ii),ii,1)&
+                    & * input%ctrl%initialSpins(1,ii) / sum(qMixIn(1:orb%nOrbAtom(ii),ii,1))
+                qTripIn(1:orb%nOrbAtom(ii),ii,2) = qTripIn(1:orb%nOrbAtom(ii),ii,1)&
+                    & * input%ctrl%initialSpins(1,ii) / sum(qTripIn(1:orb%nOrbAtom(ii),ii,1))
+              end if
             end do
           else
             if (.not. tSkipChrgChecksum) then
               do ii = 1, nAtom
                 qInput(1:orb%nOrbAtom(ii),ii,2) = qInput(1:orb%nOrbAtom(ii),ii,1)&
                     & * (nEl(1)-nEl(2))/sum(qInput(:,:,1))
+                if (tROKS) then
+                  qMixIn(1:orb%nOrbAtom(ii),ii,2) = qMixIn(1:orb%nOrbAtom(ii),ii,1)&
+                      & * (nEl(1)-nEl(2))/sum(qMixIn(:,:,1))
+                  qTripIn(1:orb%nOrbAtom(ii),ii,2) = qTripIn(1:orb%nOrbAtom(ii),ii,1)&
+                      & * (nEl(1)-nEl(2))/sum(qTripIn(:,:,1))
+                end if
               end do
             end if
           end if
@@ -2470,15 +2557,28 @@ contains
       end if
 
       qInpRed = 0.0_dp
+      if (tROKS) then
+        qMixInpRed = 0.0_dp
+        qTripInpRed = 0.0_dp
+      end if
       if (nSpin == 2) then
         call qm2ud(qInput)
+        if (tROKS) then
+          call qm2ud(qMixIn)
+          call qm2ud(qTripIn)
+        end if
         if (tMixBlockCharges) then
           call qm2ud(qBlockIn)
         end if
       end if
 
       call OrbitalEquiv_reduce(qInput, iEqOrbitals, orb, qInpRed(1:nIneqOrb))
+      if (tROKS) then
+        call OrbitalEquiv_reduce(qMixIn, iEqOrbitals, orb, qMixInpRed(1:nIneqOrb))
+        call OrbitalEquiv_reduce(qTripIn, iEqOrbitals, orb, qTripInpRed(1:nIneqOrb))
+      end if
 
+      
       if (allocated(onSiteElements)) then
         call AppendBlock_reduce(qBlockIn, iEqBlockOnSite, orb, qInpRed )
         if (tImHam) then
@@ -2493,6 +2593,10 @@ contains
 
       if (nSpin == 2) then
         call ud2qm(qInput)
+        if (tROKS) then
+          call ud2qm(qMixIn)
+          call ud2qm(qTripIn)
+        end if
         if (tMixBlockCharges) then
           call ud2qm(qBlockIn)
         end if
@@ -2587,7 +2691,7 @@ contains
         & orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal,&
         & chargePerShell, occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment,&
         & OldHSqrReal, Otemp, overlapM, indxMOM, prjMOM, fillMOM, SSqrRealStorage,  SSqrTranspose, &
-        & identityM, tIMOM, nDADt, nDADm)
+        & identityM, tIMOM, nDADt, nDADm, tROKS, rhoMixPrim, rhoTripPrim)
 
   #:if WITH_TRANSPORT
     ! note, this has the side effect of setting up module variable transpar as copy of
@@ -3350,7 +3454,9 @@ contains
     @:SAFE_DEALLOC(tunneling, ldos, current, leadCurrents, poissonDerivs, shiftPerLUp, chargeUp)
     @:SAFE_DEALLOC(regionLabelLDOS)
     @:SAFE_DEALLOC(iAtInCentralRegion, energiesCasida)
-
+    @:SAFE_DEALLOC(qMixIn, qTripIn, mixThirdOrd, tripThirdOrd, mixHam, tripHam)
+    @:SAFE_DEALLOC(rhoMixPrim, rhoTripPrim)
+  
   end subroutine destructProgramVariables
 
 
@@ -3657,7 +3763,7 @@ contains
       & orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal,&
       & chargePerShell, occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment,&
       & OldHSqrReal, Otemp, overlapM, indxMOM, prjMOM, fillMOM, SSqrRealStorage,  SSqrTranspose, &
-      & identityM, tIMOM, nDADt, nDADm)
+      & identityM, tIMOM, nDADt, nDADm, tROKS, rhoMixPrim, rhoTripPrim)
 
     !> Current environment
     type(TEnvironment), intent(in) :: env
@@ -3865,10 +3971,22 @@ contains
     integer, intent(in) :: nDADt
     integer, intent(in) :: nDADm
 
+    !> Is this an ROKS calculation?
+    logical, intent(in) :: tROKS
+
+    !> Mixed determinant sparse density matrix for ROKS
+    real(dp), intent(out), allocatable :: rhoMixPrim(:,:)
+
+    !> Triplet determinant sparse density matrix for ROKS
+    real(dp), intent(out), allocatable :: rhoTripPrim(:,:)
+
 
     integer :: nSpinHams, sqrHamSize
 
     allocate(rhoPrim(0, nSpin))
+    allocate(rhoMixPrim(0, nSpin))
+    allocate(rhoTripPrim(0, nSpin))  
+
     allocate(h0(0))
     if (tImHam) then
       allocate(iRhoPrim(0, nSpin))
@@ -4514,7 +4632,7 @@ contains
 
 
   !> Initialises SCC related parameters before geometry loop starts
-  function getMinSccIters(tSccCalc, tDftbU, nSpin) result(minSccIter)
+  function getMinSccIters(tSccCalc, tDftbU, nSpin, tROKS) result(minSccIter)
 
     !> Is this a self consistent calculation
     logical, intent(in) :: tSccCalc
@@ -4524,6 +4642,9 @@ contains
 
     !> Number of spin channels
     integer, intent(in) :: nSpin
+
+    !> Is this an ROKS calculation
+    logical, intent(in) :: tROKS
 
     !> Minimum possible number of self consistent iterations
     integer :: minSccIter

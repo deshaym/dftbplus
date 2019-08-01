@@ -491,6 +491,8 @@ module dftbp_inputdata_module
     integer :: nDADt = 1
     integer :: nDADm = 1
 
+    !> ROKS 
+    logical :: tROKS = .false.
 
 
 
