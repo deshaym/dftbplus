@@ -641,8 +641,9 @@ contains
         end if
         
         if (tROKS .and. iSccIter /= 1) then
-          call getROKSHam(mixHam, tripHam, ham, eigvecsReal, HSqrReal, orb, neighbourList, nNeighbourSK,&
-              & denseDesc, iSparseStart, img2CentCell, nEl)
+          call getROKSHam(env, mixHam, tripHam, ham, eigvecsReal, HSqrReal, orb, neighbourList, nNeighbourSK,&
+               & denseDesc, iSparseStart, img2CentCell, nEl, parallelKS, rhoPrim, SSqrReal, rhoSqrReal,&
+               & deltaRhoOutSqr, over)
         end if
        
         call getDensity(env, iSccIter, denseDesc, ham, over, neighbourList, nNeighbourSk,&
@@ -2247,8 +2248,12 @@ contains
   end subroutine convertToUpDownRepr
 
 
-  subroutine getROKSHam(mixHam, tripHam, ham, eigvecsReal, HSqrReal, orb, neighbourList, nNeighbourSK,&
-        & denseDesc, iSparseStart, img2CentCell, nEl)
+  subroutine getROKSHam(env, mixHam, tripHam, ham, eigvecsReal, HSqrReal, orb, neighbourList, &
+       & nNeighbourSK, denseDesc, iSparseStart, img2CentCell, nEl, parallelKS, rhoPrim,&
+       & SSqrReal, rhoSqrReal, deltaRhoOutSqr, over)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> Mixed determinant Hamiltonian in sparse storage
     real(dp), intent(inout) :: mixHam(:,:)
@@ -2261,7 +2266,7 @@ contains
 
     !> Real eigenvectors for conversion to MO basis
     !> MOrbs, MOrbs, nSpin
-    real(dp), intent(in) :: eigvecsReal(:,:,:)
+    real(dp), intent(inout) :: eigvecsReal(:,:,:)
 
     !> Dense matrix for temporary storage
     real(dp), intent(inout) :: HSqrReal(:,:)
@@ -2286,178 +2291,163 @@ contains
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
- 
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+    
+    !> sparse density matrix
+    real(dp), intent(out) :: rhoPrim(:,:)
+    
+    !> dense real overlap storage
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+    
+    !> Dense density matrix
+    real(dp), intent(inout), allocatable :: rhoSqrReal(:,:,:)
+
+    !> Change in density matrix during this SCC step for rangesep
+    real(dp), pointer, intent(inout) :: deltaRhoOutSqr(:,:,:)
+
+    !> Sparse overlap matrix
+    real(dp), intent(in) :: over(:)
+    
     !> Closed shell Hamiltonian
-    real(dp), allocatable :: cHam(:)
+    real(dp) :: cHam(size(over))
 
     !> First open shell Hamiltonian
-    real(dp), allocatable :: aHam(:)
+    real(dp) :: aHam(size(over))
 
     !> Second open shell Hamiltonian
-    real(dp), allocatable :: bHam(:)
+    real(dp) :: bHam(size(over))
 
+    !> Local matrices
     real(dp) :: work(orb%nOrb,orb%nOrb)
-    integer :: i
-    integer :: mClosed, nOpen1, nOpen2, fVirt
-    integer :: nElec
-
-    @:ASSERT(size(mixHam, dim=1) == orb%nOrb)
+    real(dp) :: projector(orb%nOrb,orb%norb)
+    !density matrix in dense form for use here only
+    real(dp) :: rhoDense(orb%nOrb,orb%nOrb)
     
-    allocate(cHam(orb%nOrb))
-    allocate(aHam(orb%nOrb))
-    allocate(bHam(orb%nOrb))
+    !> For each block, beginning and ending index
+    !> blockIndex(:,1) beginning index
+    !> blockIndex(:,2) ending index
+    integer :: blockIndex(4,4)
+    integer :: nElec
+    !Partial fillings to get block density matrices
+    real(dp) :: tempFill(orb%nOrb,2)
+    !first index block hamiltonian
+    !second index row
+    !third index column
+    real(dp) :: hams(size(over),4,4)
+    !list of block density matrices
+    !closed, a, b, virtual
+    real(dp) :: rhoSqrs(orb%nOrb,orb%nOrb,4)
+
+    integer :: i, j, k, ind1, ind2
 
     nElec = sum(nEl(:))/2
 
-    !Highest closed shell
-    mClosed = nElec-1
+    !Closed shells
+    blockIndex(1,1) = 1
+    blockIndex(1,2) = nElec-1
     !First open shell
-    nOpen1 = nElec
+    blockIndex(2,1) = nElec
+    blockIndex(2,2) = nElec
     !Second open shell
-    nOpen2 = nElec+1
-    !First virtual shell
-    fVirt = nElec+2
+    blockIndex(3,1) = nElec+1
+    blockIndex(3,2) = nElec+1
+    !Virtual shells
+    blockIndex(4,1) = nElec+2
+    blockIndex(4,2) = orb%nOrb
 
-    write(*,*) 'nEl', nEl
-    write(*,*) 'nElec', nElec
-    write(*,*) 'mClosed', mClosed
-    write(*,*) 'nOpen1', nOpen1
-    write(*,*) 'nOpen2', nOpen2
-    write(*,*) 'fVirt', fVirt
-
-    call sparseToMO(HSqrReal, mixHam, eigvecsReal, neighbourList, nNeighbourSK,&
-         & denseDesc, iSparseStart, img2CentCell, orb)
-    call sparseToMO(HSqrReal, tripHam, eigvecsReal, neighbourList, nNeighbourSK,&
-         & denseDesc, iSparseStart, img2CentCell, orb)
 
     !Triplet alpha and beta are swapped from ROKS paper
     cHam = 2*mixHam(:,1) + 2*mixHam(:,2) - tripHam(:,2) - tripHam(:,1)
     aHam = 2*mixHam(:,2) - tripHam(:,2)
     bHam = 2*mixHam(:,1) - tripHam(:,2)
 
-    HSqrReal(:,:) = 0.0_dp
+    hams(:,1,1) = cHam; hams(:,1,2) = cHam-aHam; hams(:,1,3) = cHam-bHam; hams(:,1,4) = cHam
+    hams(:,2,1) = cHam-aHam; hams(:,2,2) = aHam; hams(:,2,3) = aHam-bHam; hams(:,2,4) = aHam
+    hams(:,3,1) = cHam-bHam; hams(:,3,2) = aHam-bHam; hams(:,3,3) = bHam; hams(:,3,4) = bHam
+    hams(:,4,1) = cHam; hams(:,4,2) = aHam; hams(:,4,3) = bHam; hams(:,4,4) = cHam
+   
     ham(:,:) = 0.0_dp
 
-    if (nElec > 1) then
-      call unpackHS(work, cHam, neighbourList%iNeighbour, nNeighbourSK,&
-          & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-      HSqrReal(1:mClosed,1:mClosed) = work(1:mClosed,1:mClosed)
-      if (orb%nOrb > fVirt) then
-        HSqrReal(fVirt:orb%nOrb,1:mClosed) = work(fVirt:orb%nOrb,1:mClosed)
-!        HSqrReal(1:mClosed,fVirt:orb%nOrb) = work(fVirt:orb%nOrb,1:mClosed)
+    call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK,&
+        & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+
+    do i = 1, 4
+       
+      ind1 = blockIndex(i,1)
+      ind2 = blockIndex(i,2)
+      
+      if (ind2 .ge. ind1) then
+         
+        tempFill(:,:) = 0.0_dp
+        tempFill(ind1:ind2,1) = 1.0_dp
+        tempFill(:,2) = tempFill(:,1)
+        
+        call getDensityFromRealEigvecs(env, denseDesc, tempFill, neighbourList,&
+            & nNeighbourSK, iSparseStart, img2CentCell, orb, eigVecsReal, parallelKS,&
+            & rhoPrim, work, rhoSqrReal, deltaRhoOutSqr)
+        call unpackHS(rhoSqrs(:,:,i), rhoPrim(:,1), neighbourList%iNeighbour, nNeighbourSK,&
+             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        
+      else
+        rhoSqrs(:,:,i) = 0.0_dp
       end if
-      call unpackHS(work, cHam-aHam, neighbourList%iNeighbour, nNeighbourSK,&
-          & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-      HSqrReal(nOpen1,1:mClosed) = work(nOpen1,1:mClosed)
-!      HSqrReal(1:mClosed,nOpen1) = work(nOpen1,1:mClosed)
-      call unpackHS(work, cHam-bHam, neighbourList%iNeighbour, nNeighbourSK,&
-          & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-      HSqrReal(nOpen2,1:mClosed) = work(nOpen2,1:mClosed)
-!      HSqrReal(1:mClosed,nOpen2) = work(nOpen2,1:mClosed)
-    end if
-
-    if (orb%nOrb > fVirt) then
-      call unpackHS(work, cHam, neighbourList%iNeighbour, nNeighbourSK,&
-          & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-      HSqrReal(fVirt:orb%nOrb,fVirt:orb%nOrb) = work(fVirt:orb%nOrb,1:mClosed)
-    end if
-    call unpackHS(work, aHam, neighbourList%iNeighbour, nNeighbourSK,&
-        & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-    HSqrReal(nOpen1,nOpen1) = work(nOpen1,nOpen1)
-    if (orb%nOrb > fVirt) then
-      HSqrReal(fVirt:orb%nOrb,nOpen1) = work(fVirt:orb%nOrb,nOpen1)
-!      HSqrReal(nOpen1,fVirt:orb%nOrb) = work(fVirt:orb%nOrb,nOpen1)
-    end if
-    call unpackHS(work, bHam, neighbourList%iNeighbour, nNeighbourSK,&
-        & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-    HSqrReal(nOpen2,nOpen2) = work(nOpen2,nOpen2)
-    if (orb%nOrb > fVirt) then
-      HSqrReal(fVirt:orb%nOrb,nOpen2) = work(fVirt:orb%nOrb,nOpen2)
-!      HSqrReal(nOpen2,fVirt:orb%nOrb) = work(fVirt:orb%nOrb,nOpen2)
-    end if
-    call unpackHS(work, aHam-bHam, neighbourList%iNeighbour, nNeighbourSK,&
-        & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-    HSqrReal(nOpen2,nOpen1) = work(nOpen2,nOpen1)
-!    HSqrReal(nOpen1,nOpen2) = work(nOpen2,nOpen1)
-    
-    write(*,*) 'HSqrReal', shape(HSqrReal)
-    do i=1,ubound(HSqrReal,1)
-      print *, HSqrReal(i,:)
+     
     end do
 
-    write(*,*) 'aHam-bHam', shape(HSqrReal)
-    do i=1,ubound(HSqrReal,1)
-      print *, work(i,:)
+    !rows
+    do i = 1, 4
+      !columns
+      do j = 1, 4
+
+        call unpackHS(HSqrReal, hams(:,i,j), neighbourList%iNeighbour, nNeighbourSK,&
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+
+        !Maybe do the multiplication by S beforehand and store all 8 projectors
+        projector = matmul(rhoSqrs(:,:,i), SSqrReal)
+        work = matmul(HSqrReal,projector)
+
+        projector = matmul(SSqrReal, rhoSqrs(:,:,j))
+        HSqrReal = matmul(projector,work)
+
+        !Use beta channel of sparse ham as temporary storage
+        call packHS(ham(:,2), HSqrReal, neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb,&
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+
+        ham(:,1) = ham(:,1) + ham(:,2)
+
+      end do
     end do
 
-    work(:,:) = matmul(HSqrReal, eigvecsReal(:,:,1))
-    HSqrReal(:,:) = matmul(transpose(eigvecsReal(:,:,1)), work)
-
-    write(*,*) 'HSqrReal', shape(HSqrReal)
-    do i=1,ubound(HSqrReal,1)
-      print *, HSqrReal(i,:)
-    end do
-
-    call packHS(ham(:,1), HSqrReal, neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb,&
-        & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-
-    ham(:,1) = ham(:,1)*0.5_dp
+    !Multiply by 1/2 for restricted calculations on ham
+!    ham(:,1) = ham(:,1)*0.5_dp
     ham(:,2) = ham(:,1)
 
-    write(*,*) 'nOrb', orb%nOrb
-    write(*,*) 'nEl', nEl
-  
-  end subroutine getROKSHam
-
-
-  subroutine sparseToMO(HSqrReal, ham, eigvecsReal, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
-      & img2CentCell, orb)
-
-    !> Dense matrix for temporary storage
-    real(dp), intent(inout) :: HSqrReal(:,:)
-
-    !> Sparse result matrix (one spin channel)
-    real(dp), intent(inout) :: ham(:,:)
-
-    !> Real eigenvectors for conversion to MO basis
-    !> nOrbs, nOrbs, nSpin
-    real(dp), intent(in) :: eigvecsReal(:,:,:)
-
-    !> list of neighbours for each atom
-    type(TNeighbourList), intent(in) :: neighbourList
-
-    !> Number of neighbours for each of the atoms
-    integer, intent(in) :: nNeighbourSK(:)
-
-    !> Index array for the start of atomic blocks in sparse arrays
-    integer, intent(in) :: iSparseStart(:,:)
-
-    !> map from image atoms to the original unique atom
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Dense matrix descriptor
-    type(TDenseDescr), intent(in) :: denseDesc
-
-    !> Atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    real(dp) :: work(orb%nOrb,orb%nOrb)
-    integer :: nSpin
-    integer :: i
-
-    nSpin = size(ham, dim=2)
-    do i = 1, nSpin
-      call unpackHS(HSqrReal, ham(:,i), neighbourList%iNeighbour, nNeighbourSK,&
-          & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-
-        work(:,:) = matmul(HSqrReal, transpose(eigvecsReal(:,:,i)))
-        HSqrReal(:,:) = matmul(eigvecsReal(:,:,i), work)
-
-      call packHS(ham(:,i), HSqrReal, neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb,&
-           & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+    write(*,*) 'ham', shape(ham)
+    do i=1,ubound(ham,1)
+      print *, ham(i, :)
     end do
 
-  end subroutine sparseToMO
+    write(*,*) 'rhoSqrs', shape(rhoSqrs)
+    write(*,*) 'closed'
+    do i=1,ubound(rhoSqrs,1)
+      print *, rhoSqrs(i, :, 1)
+    end do 
+    write(*,*) 'a'
+    do i=1,ubound(rhoSqrs,1)
+      print *, rhoSqrs(i, :, 2)
+    end do 
+    write(*,*) 'b'
+    do i=1,ubound(rhoSqrs,1)
+      print *, rhoSqrs(i, :, 3)
+    end do 
+    write(*,*) 'virtual'
+    do i=1,ubound(rhoSqrs,1)
+      print *, rhoSqrs(i, :, 4)
+    end do 
+  
+  end subroutine getROKSHam
 
 
   !> Returns the sparse density matrix.
