@@ -627,11 +627,7 @@ contains
               end do
             end if
           else
-             call convertToUpDownRepr(ham, iHam)
-             write(*,*) 'ham', shape(ham)
-             do i=1,ubound(ham,1)
-               print *, ham(i, :)
-             end do
+            call convertToUpDownRepr(ham, iHam)
           end if  
   
         end do lpROKS
@@ -697,10 +693,6 @@ contains
             else
               call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
                   & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
-              write(*,*) 'rhoPrim', shape(rhoPrim)
-              do i=1,ubound(rhoPrim,1)
-                print *, rhoPrim(i, :)
-              end do
             end if
           end if
 
@@ -727,10 +719,24 @@ contains
                 call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
                     & neighbourList, img2CentCell, spinW, tripThirdOrd, potential, electrostatics,&
                     & tPoissonTwice, tUpload, shiftPerLUp)
+                 write(*,*) 'qOutput', shape(qOutput)
+                do j=1,ubound(qOutput,2)
+                  write(*,*) 'atom', j
+                  do i=1,ubound(qOutput,1)
+                    print *, qOutput(i, j, 1), qOutput(i, j, 2)
+                  end do
+                end do 
               else
                 call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
                     & neighbourList, img2CentCell, spinW, mixThirdOrd, potential, electrostatics,&
                     & tPoissonTwice, tUpload, shiftPerLUp)
+                write(*,*) 'qOutput', shape(qOutput)
+                do j=1,ubound(qOutput,2)
+                  write(*,*) 'atom', j
+                  do i=1,ubound(qOutput,1)
+                    print *, qOutput(i, j, 1), qOutput(i, j, 2)
+                  end do
+                end do 
               end if
             else
               call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
@@ -794,6 +800,13 @@ contains
                   do i=1,ubound(qTripInpRed,1)
                     print *, qTripInpRed(i)
                   end do
+                  write(*,*) 'qTripIn', shape(qTripIn)
+                do j=1,ubound(qTripIn,2)
+                  write(*,*) 'atom', j
+                  do i=1,ubound(qTripIn,1)
+                    print *, qTripIn(i, j, 1), qTripIn(i, j, 2)
+                  end do
+                end do 
                 else
                   call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
                       & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
@@ -804,6 +817,13 @@ contains
                   do i=1,ubound(qMixInpRed,1)
                     print *, qMixInpRed(i)
                   end do
+                 write(*,*) 'qMixIn', shape(qMixIn)
+                do j=1,ubound(qMixIn,2)
+                  write(*,*) 'atom', j
+                  do i=1,ubound(qMixIn,1)
+                    print *, qMixIn(i, j, 1), qMixIn(i, j, 2)
+                  end do
+                end do 
                 end if
               else
                 call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
@@ -4290,11 +4310,19 @@ contains
     real(dp), allocatable :: qDiffRed(:)
     integer :: nSpin
 
+    integer :: i
+
     nSpin = size(qOutput, dim=3)
 
     call reduceCharges(orb, nIneqOrb, iEqOrbitals, qOutput, qOutRed, qBlockOut, iEqBlockDftbu,&
         & qiBlockOut, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
-    qDiffRed = qOutRed - qInpRed
+
+    write(*,*) 'qOutRed', shape(qOutRed)
+    do i=1,ubound(qOutRed,1)
+      print *, qOutRed(i)
+    end do
+    
+   
     sccErrorQ = maxval(abs(qDiffRed))
     if (tROKS) then
       tConverged = (sccErrorQ < sccTol) .and. (iSccIter >= minSccIter .or. tReadChrg)
@@ -4317,6 +4345,15 @@ contains
           end if
         end if
       else
+        write(*,*) 'qInpRed', shape(qInpRed)
+        do i=1,ubound(qInpRed,1)
+          print *, qInpRed(i)
+        end do
+        qDiffRed = qOutRed - qInpRed
+        write(*,*) 'qDiffRed', shape(qDiffRed)
+        do i=1,ubound(qDiffRed,1)
+          print *, qDiffRed(i)
+        end do
         call mix(pChrgMixer, qInpRed, qDiffRed)
       #:if WITH_MPI
         ! Synchronise charges in order to avoid mixers that store a history drifting apart
@@ -4500,6 +4537,8 @@ contains
     integer, intent(in), allocatable :: iEqBlockOnSiteLS(:,:,:,:)
 
     real(dp), allocatable :: qOrbUpDown(:,:,:), qBlockUpDown(:,:,:,:)
+
+    integer :: i, j
 
     qRed(:) = 0.0_dp
     qOrbUpDown = qOrb
