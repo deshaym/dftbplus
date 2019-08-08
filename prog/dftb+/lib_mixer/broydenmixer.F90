@@ -174,7 +174,7 @@ contains
     self%iIter = 0
     self%ww(:) = 0.0_dp
     self%aa(:,:) = 0.0_dp
-
+    
   end subroutine BroydenMixer_reset
 
 

@@ -154,7 +154,7 @@ contains
 
   !> Resets the mixer
   subroutine Mixer_reset(self, nElem)
-
+    
     !> Mixer instance.
     type(OMixer), intent(inout) :: self
 

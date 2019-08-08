@@ -410,7 +410,12 @@ contains
     #:endif
 
     if (tSccCalc) then
-      call reset(pChrgMixer, nMixElements)
+      if (tROKS .or. tNonAufbau) then
+        call reset(pChrgMixerMix, nMixElements)
+        call reset(pChrgMixerTrip, nMixElements)
+      else   
+        call reset(pChrgMixer, nMixElements)
+      end if 
     end if
 
     if (electronicSolver%isElsiSolver .and. .not. tLargeDenseMatrices) then
@@ -467,7 +472,9 @@ contains
       call electronicSolver%elsi%initPexsiDeltaVRanges(tSccCalc, potential)
     end if
 
-    call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged, tNegf)
+    if (.not. tNonAufbau) then
+      call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged, tNegf)
+    end if   
 
     call env%globalTimer%stopTimer(globalTimers%preSccInit)
 
@@ -492,6 +499,10 @@ contains
         write (*,*) '					        1 = Triplet		1 = Mixed'
         write (*,*) '					        2 = Mixed'
         write (*,*) '________________________________________________________________________________________'
+        
+!        call reset(pChrgMixer, nMixElements)
+        call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged, tNegf)
+       
       end if
 
    !   if (tMOM .or. tIMOM) then
@@ -507,43 +518,19 @@ contains
         end if
         lpROKS: do iROKSIter = 1, maxROKSIter
 
-          write(*,*) "iROKS", iROKSIter
-              
           call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
 
           if (tSccCalc) then
 
-            if (tROKS .and. iSccIter /= 1) then
-              if (iROKSIter == 1) then
-                call getChargePerShell(qTripIn, orb, species, chargePerShell)
-                write(*,*) 'qTripIn', shape(qTripIn)
-                do j=1,ubound(qTripIn,2)
-                  write(*,*) 'atom', j
-                  do i=1,ubound(qTripIn,1)
-                    print *, qTripIn(i, j, 1), qTripIn(i, j, 2)
-                  end do
-                end do 
-              else
-                call getChargePerShell(qMixIn, orb, species, chargePerShell)
-                write(*,*) 'qMixIn', shape(qMixIn)
-                do j=1,ubound(qMixIn,2)
-                  write(*,*) 'atom', j
-                  do i=1,ubound(qMixIn,1)
-                    print *, qMixIn(i, j, 1), qMixIn(i, j, 2)
-                  end do
-                end do 
+            if ((tROKS .and. iSccIter /= 1) .or. tNonAufbau) then
+              if ((tROKS .and. iROKSIter == 1) .or. (tNonAufbau .and. iDet == 1)) then
+                 call getChargePerShell(qTripIn, orb, species, chargePerShell)
+              else if ((tROKS .and. iROKSIter == 2) .or. (tNonAufbau .and. iDet == 2)) then
+                 call getChargePerShell(qMixIn, orb, species, chargePerShell)
               end if
             else
-              call getChargePerShell(qInput, orb, species, chargePerShell)
-              write(*,*) 'qInput', shape(qInput)
-              do j=1,ubound(qInput,2)
-                write(*,*) 'atom', j
-                do i=1,ubound(qInput,1)
-                  print *, qInput(i, j, 1), qInput(i, j, 2)
-                end do
-              end do
+               call getChargePerShell(qInput, orb, species, chargePerShell)
             end if
-
 
           #:if WITH_TRANSPORT
             ! Overrides input charges with uploaded contact charges
@@ -552,12 +539,12 @@ contains
             end if
           #:endif
 
-            if (tROKS .and. iSccIter /= 1) then
-              if (iROKSIter == 1) then
+            if ((tROKS .and. iSccIter /= 1) .or. tNonAufbau) then
+              if ((tROKS .and. iROKSIter == 1) .or. (tNonAufbau .and. iDet == 1)) then
                 call addChargePotentials(env, sccCalc, qTripIn, q0, chargePerShell, orb, species,&
                     & neighbourList, img2CentCell, spinW, tripThirdOrd, potential, electrostatics,&
                     & tPoisson, tUpload, shiftPerLUp)
-              else
+              else if ((tROKS .and. iROKSIter == 2) .or. (tNonAufbau .and. iDet == 2)) then
                 call addChargePotentials(env, sccCalc, qMixIn, q0, chargePerShell, orb, species,&
                     & neighbourList, img2CentCell, spinW, mixThirdOrd, potential, electrostatics,&
                     & tPoisson, tUpload, shiftPerLUp)
@@ -615,16 +602,8 @@ contains
           if (tROKS .and. iSccIter /= 1) then
             if (iROKSIter == 1) then
                call convertToUpDownRepr(tripHam, iHam)
-               write(*,*) 'tripHam', shape(tripHam)
-               do i=1,ubound(tripHam,1)
-                 print *, tripHam(i, :)
-               end do
             else
               call convertToUpDownRepr(mixHam, iHam)
-              write(*,*) 'mixHam', shape(mixHam)
-              do i=1,ubound(mixHam,1)
-                print *, mixHam(i, :)
-              end do
             end if
           else
             call convertToUpDownRepr(ham, iHam)
@@ -678,17 +657,9 @@ contains
               if (iROKSIter == 1) then
                 call getMullikenPopulation(rhoTripPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
                     & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
-                write(*,*) 'rhoTripPrim', shape(rhoTripPrim)
-                do i=1,ubound(rhoTripPrim,1)
-                  print *, rhoTripPrim(i, :)
-                end do
               else
                 call getMullikenPopulation(rhoMixPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
                     & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
-                write(*,*) 'rhoMixPrim', shape(rhoMixPrim)
-                do i=1,ubound(rhoMixPrim,1)
-                  print *, rhoMixPrim(i, :)
-                end do
               end if
             else
               call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
@@ -713,30 +684,16 @@ contains
           if (tSccCalc .and. .not. tXlbomd) then
             call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
             call getChargePerShell(qOutput, orb, species, chargePerShell)
-
+           
             if (tROKS) then
               if (iROKSIter == 1) then
                 call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
                     & neighbourList, img2CentCell, spinW, tripThirdOrd, potential, electrostatics,&
                     & tPoissonTwice, tUpload, shiftPerLUp)
-                 write(*,*) 'qOutput', shape(qOutput)
-                do j=1,ubound(qOutput,2)
-                  write(*,*) 'atom', j
-                  do i=1,ubound(qOutput,1)
-                    print *, qOutput(i, j, 1), qOutput(i, j, 2)
-                  end do
-                end do 
               else
                 call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
                     & neighbourList, img2CentCell, spinW, mixThirdOrd, potential, electrostatics,&
                     & tPoissonTwice, tUpload, shiftPerLUp)
-                write(*,*) 'qOutput', shape(qOutput)
-                do j=1,ubound(qOutput,2)
-                  write(*,*) 'atom', j
-                  do i=1,ubound(qOutput,1)
-                    print *, qOutput(i, j, 1), qOutput(i, j, 2)
-                  end do
-                end do 
               end if
             else
               call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
@@ -789,41 +746,19 @@ contains
           ! Mix charges Input/Output
           if (tSccCalc) then
             if(.not. tRangeSep) then
-              if (tROKS) then
-                if (iROKSIter == 1) then 
-                  call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
+              if (tROKS .or. tNonAufbau) then
+                if ((tROKS .and. iROKSIter == 1) .or. (tNonAufbau .and. iDet == 1)) then
+                  call getNextInputCharges(env, pChrgMixerTrip, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
                       & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
                       & tReadChrg, qTripIn, qTripInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
                       & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
                       & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS)
-                  write(*,*) 'qTripInpRed', shape(qTripInpRed)
-                  do i=1,ubound(qTripInpRed,1)
-                    print *, qTripInpRed(i)
-                  end do
-                  write(*,*) 'qTripIn', shape(qTripIn)
-                do j=1,ubound(qTripIn,2)
-                  write(*,*) 'atom', j
-                  do i=1,ubound(qTripIn,1)
-                    print *, qTripIn(i, j, 1), qTripIn(i, j, 2)
-                  end do
-                end do 
-                else
-                  call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
+                else if ((tROKS .and. iROKSIter ==2) .or. (tNonAufbau .and. iDet == 2)) then
+                  call getNextInputCharges(env, pChrgMixerMix, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
                       & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
                       & tReadChrg, qMixIn, qMixInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
                       & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
                       & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS)
-                  write(*,*) 'qMixInpRed', shape(qMixInpRed)
-                  do i=1,ubound(qMixInpRed,1)
-                    print *, qMixInpRed(i)
-                  end do
-                 write(*,*) 'qMixIn', shape(qMixIn)
-                do j=1,ubound(qMixIn,2)
-                  write(*,*) 'atom', j
-                  do i=1,ubound(qMixIn,1)
-                    print *, qMixIn(i, j, 1), qMixIn(i, j, 2)
-                  end do
-                end do 
                 end if
               else
                 call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
@@ -831,16 +766,13 @@ contains
                     & tReadChrg, qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
                     & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
                     & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS)
-                write(*,*) 'qInpRed', shape(qInpRed)
-                do i=1,ubound(qInpRed,1)
-                  print *, qInpRed(i)
-                end do
               end if 
             else
               call getNextInputDensity(SSqrReal, over, neighbourList, nNeighbourSK,&
                   & denseDesc%iAtomStart, iSparseStart, img2CentCell, pChrgMixer, qOutput, orb,&
                   & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tReadChrg, q0,&
                   & qInput, sccErrorQ, tConverged, deltaRhoOut, deltaRhoIn, deltaRhoDiff)
+              
             end if
 
             call getSccInfo(iSccIter, energy%Eelec, Eold, diffElec)
@@ -2444,29 +2376,7 @@ contains
 !    ham(:,1) = ham(:,1)*0.5_dp
     ham(:,2) = ham(:,1)
 
-    write(*,*) 'ham', shape(ham)
-    do i=1,ubound(ham,1)
-      print *, ham(i, :)
-    end do
-
-    write(*,*) 'rhoSqrs', shape(rhoSqrs)
-    write(*,*) 'closed'
-    do i=1,ubound(rhoSqrs,1)
-      print *, rhoSqrs(i, :, 1)
-    end do 
-    write(*,*) 'a'
-    do i=1,ubound(rhoSqrs,1)
-      print *, rhoSqrs(i, :, 2)
-    end do 
-    write(*,*) 'b'
-    do i=1,ubound(rhoSqrs,1)
-      print *, rhoSqrs(i, :, 3)
-    end do 
-    write(*,*) 'virtual'
-    do i=1,ubound(rhoSqrs,1)
-      print *, rhoSqrs(i, :, 4)
-    end do 
-  
+ 
   end subroutine getROKSHam
 
 
@@ -3032,11 +2942,6 @@ contains
       if (tROKS) then
         call fillingSwap(tROKS, iROKSIter, filling, nEl)
       end if
-
-      write(*,*) 'filling', shape(filling)
-      do i=1,ubound(filling,1)
-        print *, filling(i, 1, :)
-      end do
 
       call env%globalTimer%startTimer(globalTimers%densityMatrix)
       if (nSpin /= 4) then
@@ -4315,14 +4220,10 @@ contains
     nSpin = size(qOutput, dim=3)
 
     call reduceCharges(orb, nIneqOrb, iEqOrbitals, qOutput, qOutRed, qBlockOut, iEqBlockDftbu,&
-        & qiBlockOut, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
+         & qiBlockOut, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
 
-    write(*,*) 'qOutRed', shape(qOutRed)
-    do i=1,ubound(qOutRed,1)
-      print *, qOutRed(i)
-    end do
-    
-   
+    qDiffRed = qOutRed - qInpRed
+
     sccErrorQ = maxval(abs(qDiffRed))
     if (tROKS) then
       tConverged = (sccErrorQ < sccTol) .and. (iSccIter >= minSccIter .or. tReadChrg)
@@ -4345,15 +4246,6 @@ contains
           end if
         end if
       else
-        write(*,*) 'qInpRed', shape(qInpRed)
-        do i=1,ubound(qInpRed,1)
-          print *, qInpRed(i)
-        end do
-        qDiffRed = qOutRed - qInpRed
-        write(*,*) 'qDiffRed', shape(qDiffRed)
-        do i=1,ubound(qDiffRed,1)
-          print *, qDiffRed(i)
-        end do
         call mix(pChrgMixer, qInpRed, qDiffRed)
       #:if WITH_MPI
         ! Synchronise charges in order to avoid mixers that store a history drifting apart

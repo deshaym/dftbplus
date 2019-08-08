@@ -527,6 +527,12 @@ module dftbp_initprogram
   !> Charge mixer
   type(OMixer), allocatable :: pChrgMixer
 
+  !> ROKS mixer for mixed determinant
+  type(OMixer), allocatable :: pChrgMixerMix
+
+  !> ROKS mixer for triplet determinant
+  type(OMixer), allocatable :: pChrgMixerTrip
+
 
   !> MD Framework
   type(OMDCommon), allocatable :: pMDFrame
@@ -1712,35 +1718,99 @@ contains
     ! Initialize mixer
     ! (at the moment, the mixer does not need to know about the size of the
     ! vector to mix.)
+    ! Allocate two mixers if tROKS
     if (tSccCalc) then
-      allocate(pChrgMixer)
+        allocate(pChrgMixer)
+      if (tROKS .or. tNonAufbau) then
+        allocate(pChrgMixerMix)
+        allocate(pChrgMixerTrip)
+      end if
+     
       iMixer = input%ctrl%iMixSwitch
       nGeneration = input%ctrl%iGenerations
       mixParam = input%ctrl%almix
       select case (iMixer)
+         
       case (mixerTypes%simple)
-        allocate(pSimplemixer)
-        call init(pSimpleMixer, mixParam)
-        call init(pChrgMixer, pSimpleMixer)
-      case (mixerTypes%anderson)
-        allocate(pAndersonMixer)
-        if (input%ctrl%andersonNrDynMix > 0) then
-          call init(pAndersonMixer, nGeneration, mixParam, input%ctrl%andersonInitMixing,&
-              & input%ctrl%andersonDynMixParams, input%ctrl%andersonOmega0)
+        if (tROKS .or. tNonAufbau) then 
+          allocate(pSimplemixer)
+          call init(pSimpleMixer, mixParam)
+          call init(pChrgMixerMix, pSimpleMixer)
+          allocate(pSimplemixer)
+          call init(pSimpleMixer, mixParam)
+          call init(pChrgMixerTrip, pSimpleMixer)
         else
-          call init(pAndersonMixer, nGeneration, mixParam, input%ctrl%andersonInitMixing,&
-              & omega0=input%ctrl%andersonOmega0)
+          allocate(pSimplemixer)
+          call init(pSimpleMixer, mixParam)
+          call init(pChrgMixer, pSimpleMixer)
         end if
-        call init(pChrgMixer, pAndersonMixer)
+       
+      case (mixerTypes%anderson)
+        if (tROKS .or. tNonAufbau) then
+            
+          allocate(pAndersonMixer)
+          if (input%ctrl%andersonNrDynMix > 0) then
+            call init(pAndersonMixer, nGeneration, mixParam, input%ctrl%andersonInitMixing,&
+                & input%ctrl%andersonDynMixParams, input%ctrl%andersonOmega0)
+          else
+            call init(pAndersonMixer, nGeneration, mixParam, input%ctrl%andersonInitMixing,&
+                & omega0=input%ctrl%andersonOmega0)
+          end if
+          call init(pChrgMixerMix, pAndersonMixer)
+
+          allocate(pAndersonMixer)
+          if (input%ctrl%andersonNrDynMix > 0) then
+            call init(pAndersonMixer, nGeneration, mixParam, input%ctrl%andersonInitMixing,&
+                & input%ctrl%andersonDynMixParams, input%ctrl%andersonOmega0)
+          else
+            call init(pAndersonMixer, nGeneration, mixParam, input%ctrl%andersonInitMixing,&
+                & omega0=input%ctrl%andersonOmega0)
+          end if
+          call init(pChrgMixerTrip, pAndersonMixer)
+
+        else
+          allocate(pAndersonMixer)
+          if (input%ctrl%andersonNrDynMix > 0) then
+            call init(pAndersonMixer, nGeneration, mixParam, input%ctrl%andersonInitMixing,&
+                & input%ctrl%andersonDynMixParams, input%ctrl%andersonOmega0)
+          else
+            call init(pAndersonMixer, nGeneration, mixParam, input%ctrl%andersonInitMixing,&
+                & omega0=input%ctrl%andersonOmega0)
+          end if
+          call init(pChrgMixer, pAndersonMixer)
+       end if
+       
       case (mixerTypes%broyden)
-        allocate(pBroydenMixer)
-        call init(pBroydenMixer, maxSccIter, mixParam, input%ctrl%broydenOmega0,&
-            & input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight, input%ctrl%broydenWeightFac)
-        call init(pChrgMixer, pBroydenMixer)
+        if (tROKS .or. tNonAufbau) then
+          allocate(pBroydenMixer)
+          call init(pBroydenMixer, maxSccIter, mixParam, input%ctrl%broydenOmega0,&
+              & input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight, input%ctrl%broydenWeightFac)
+          call init(pChrgMixerMix, pBroydenMixer)
+          allocate(pBroydenMixer)
+          call init(pBroydenMixer, maxSccIter, mixParam, input%ctrl%broydenOmega0,&
+              & input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight, input%ctrl%broydenWeightFac)
+          call init(pChrgMixerTrip, pBroydenMixer)
+        else
+          allocate(pBroydenMixer)
+          call init(pBroydenMixer, maxSccIter, mixParam, input%ctrl%broydenOmega0,&
+              & input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight, input%ctrl%broydenWeightFac)
+          call init(pChrgMixer, pBroydenMixer)
+        end if
+
       case(mixerTypes%diis)
-        allocate(pDIISMixer)
-        call init(pDIISMixer,nGeneration, mixParam, input%ctrl%tFromStart)
-        call init(pChrgMixer, pDIISMixer)
+        if (tROKS .or. tNonAufbau) then
+          allocate(pDIISMixer)
+          call init(pDIISMixer,nGeneration, mixParam, input%ctrl%tFromStart)
+          call init(pChrgMixerMix, pDIISMixer)
+          allocate(pDIISMixer)
+          call init(pDIISMixer,nGeneration, mixParam, input%ctrl%tFromStart)
+          call init(pChrgMixerTrip, pDIISMixer)
+        else
+          allocate(pDIISMixer)
+          call init(pDIISMixer,nGeneration, mixParam, input%ctrl%tFromStart)
+          call init(pChrgMixer, pDIISMixer)
+        end if
+
       case default
         call error("Unknown charge mixer type.")
       end select
@@ -2365,7 +2435,7 @@ contains
     qInput(:,:,:) = 0.0_dp
     qOutput(:,:,:) = 0.0_dp
 
-    if (tROKS) then
+    if (tROKS .or. tNonAufbau) then
        allocate(qMixIn(orb%mOrb, nAtom, nSpin))
        allocate(qTripIn(orb%mOrb, nAtom, nSpin))
        qMixIn(:,:,:) = 0.0_dp
@@ -2395,7 +2465,7 @@ contains
       qDiffRed = 0.0_dp
       qInpRed = 0.0_dp
       qOutRed = 0.0_dp
-      if (tROKS) then
+      if (tROKS .or. tNonAufbau) then
         allocate(qTripInpRed(nMixElements))
         allocate(qMixInpRed(nMixElements))
         qTripInpRed = 0.0_dp
@@ -2461,7 +2531,7 @@ contains
           end if
           call initQFromAtomChrg(qInput, input%ctrl%initialCharges, referenceN0, species0,&
                & speciesName, orb)
-          if (tROKS) then
+          if (tROKS .or. tNonAufbau) then
             call initQFromAtomChrg(qMixIn, input%ctrl%initialCharges, referenceN0, species0,&
                  & speciesName, orb)
             call initQFromAtomChrg(qTripIn, input%ctrl%initialCharges, referenceN0, species0,&
@@ -2469,7 +2539,7 @@ contains
           end if 
         else
           qInput(:,:,:) = q0
-          if (tROKS) then
+          if (tROKS .or. tNonAufbau) then
             qMixIn(:,:,:) = q0
             qTripIn(:,:,:) = q0
           end if
@@ -2477,7 +2547,7 @@ contains
         if (.not. tSkipChrgChecksum) then
           ! Rescaling to ensure correct number of electrons in the system
           qInput(:,:,1) = qInput(:,:,1) *  sum(nEl) / sum(qInput(:,:,1))
-          if (tROKS) then
+          if (tROKS .or. tNonAufbau) then
             qMixIn(:,:,1) = qMixIn(:,:,1) * sum(nEl) / sum(qMixIn(:,:,1))
             qTripIn(:,:,1) = qTripIn(:,:,1) * sum(nEl) / sum(qTripIn(:,:,1))
           end if
@@ -2494,7 +2564,7 @@ contains
               ! iterations
               qInput(1:orb%nOrbAtom(ii),ii,2) = qInput(1:orb%nOrbAtom(ii),ii,1)&
                   & * input%ctrl%initialSpins(1,ii) / sum(qInput(1:orb%nOrbAtom(ii),ii,1))
-              if (tROKS) then
+              if (tROKS .or. tNonAufbau) then
                 qMixIn(1:orb%nOrbAtom(ii),ii,2) = qMixIn(1:orb%nOrbAtom(ii),ii,1)&
                     & * input%ctrl%initialSpins(1,ii) / sum(qMixIn(1:orb%nOrbAtom(ii),ii,1))
                 qTripIn(1:orb%nOrbAtom(ii),ii,2) = qTripIn(1:orb%nOrbAtom(ii),ii,1)&
@@ -2506,7 +2576,7 @@ contains
               do ii = 1, nAtom
                 qInput(1:orb%nOrbAtom(ii),ii,2) = qInput(1:orb%nOrbAtom(ii),ii,1)&
                     & * (nEl(1)-nEl(2))/sum(qInput(:,:,1))
-                if (tROKS) then
+                if (tROKS .or. tNonAufbau) then
                   qMixIn(1:orb%nOrbAtom(ii),ii,2) = qMixIn(1:orb%nOrbAtom(ii),ii,1)&
                       & * (nEl(1)-nEl(2))/sum(qMixIn(:,:,1))
                   qTripIn(1:orb%nOrbAtom(ii),ii,2) = qTripIn(1:orb%nOrbAtom(ii),ii,1)&
@@ -2557,13 +2627,13 @@ contains
       end if
 
       qInpRed = 0.0_dp
-      if (tROKS) then
+      if (tROKS .or. tNonAufbau) then
         qMixInpRed = 0.0_dp
         qTripInpRed = 0.0_dp
       end if
       if (nSpin == 2) then
         call qm2ud(qInput)
-        if (tROKS) then
+        if (tROKS .or. tNonAufbau) then
           call qm2ud(qMixIn)
           call qm2ud(qTripIn)
         end if
@@ -2573,7 +2643,7 @@ contains
       end if
 
       call OrbitalEquiv_reduce(qInput, iEqOrbitals, orb, qInpRed(1:nIneqOrb))
-      if (tROKS) then
+      if (tROKS .or. tNonAufbau) then
         call OrbitalEquiv_reduce(qMixIn, iEqOrbitals, orb, qMixInpRed(1:nIneqOrb))
         call OrbitalEquiv_reduce(qTripIn, iEqOrbitals, orb, qTripInpRed(1:nIneqOrb))
       end if
@@ -2593,7 +2663,7 @@ contains
 
       if (nSpin == 2) then
         call ud2qm(qInput)
-        if (tROKS) then
+        if (tROKS .or. tNonAufbau) then
           call ud2qm(qMixIn)
           call ud2qm(qTripIn)
         end if
@@ -3455,7 +3525,7 @@ contains
     @:SAFE_DEALLOC(regionLabelLDOS)
     @:SAFE_DEALLOC(iAtInCentralRegion, energiesCasida)
     @:SAFE_DEALLOC(qMixIn, qTripIn, mixThirdOrd, tripThirdOrd, mixHam, tripHam)
-    @:SAFE_DEALLOC(rhoMixPrim, rhoTripPrim)
+    @:SAFE_DEALLOC(rhoMixPrim, rhoTripPrim, pChrgMixerMix, pChrgMixerTrip)
   
   end subroutine destructProgramVariables
 
