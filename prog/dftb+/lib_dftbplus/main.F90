@@ -396,10 +396,10 @@ contains
 
     if (tCoordsChanged) then
       call handleCoordinateChange(env, coord0, latVec, invLatVec, species0, cutOff, orb,&
-          & tPeriodic, sccCalc, dispersion, thirdOrd, rangeSep, img2CentCell, iCellVec,&
-          & neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec, nNeighbourSk,&
-          & nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim,&
-          & iSparseStart, tPoisson, tROKS, mixHam, tripHam, rhoMixPrim, rhoTripPrim)
+          & tPeriodic, sccCalc, dispersion, thirdOrd, mixThirdOrd, tripThirdOrd, rangeSep,&
+          & img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec,&
+          & nNeighbourSk, nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam,&
+          & ERhoPrim, iSparseStart, tPoisson, tROKS, mixHam, tripHam, rhoMixPrim, rhoTripPrim)
     end if
 
     #:if WITH_TRANSPORT
@@ -532,6 +532,7 @@ contains
                call getChargePerShell(qInput, orb, species, chargePerShell)
             end if
 
+
           #:if WITH_TRANSPORT
             ! Overrides input charges with uploaded contact charges
             if (tUpload) then
@@ -565,6 +566,8 @@ contains
 
           end if
 
+          
+          
           ! All potentials are added up into intBlock
           potential%intBlock = potential%intBlock + potential%extBlock
 
@@ -608,7 +611,7 @@ contains
           else
             call convertToUpDownRepr(ham, iHam)
           end if  
-  
+
         end do lpROKS
 
         if (tROKS) then
@@ -684,9 +687,10 @@ contains
           if (tSccCalc .and. .not. tXlbomd) then
             call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
             call getChargePerShell(qOutput, orb, species, chargePerShell)
-           
+
             if (tROKS) then
               if (iROKSIter == 1) then
+
                 call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
                     & neighbourList, img2CentCell, spinW, tripThirdOrd, potential, electrostatics,&
                     & tPoissonTwice, tUpload, shiftPerLUp)
@@ -701,8 +705,6 @@ contains
                   & tPoissonTwice, tUpload, shiftPerLUp)
             end if
                
-               
-
             call addBlockChargePotentials(qBlockOut, qiBlockOut, tDftbU, tImHam, species, orb,&
                 & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
 
@@ -1230,10 +1232,10 @@ contains
 
   !> Does the operations that are necessary after atomic coordinates change
   subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, cutOff, orb,&
-      & tPeriodic, sccCalc, dispersion, thirdOrd, rangeSep, img2CentCell, iCellVec, neighbourList,&
-      & nAllAtom, coord0Fold, coord, species, rCellVec, nNeighbourSK, nNeighbourRep, nNeighbourLC,&
-      & ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart, tPoisson, tROKS, mixHam,&
-      & tripHam, rhoMixPrim, rhoTripPrim)
+      & tPeriodic, sccCalc, dispersion, thirdOrd, mixThirdOrd, tripThirdOrd,rangeSep,&
+      &  img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec,&
+      & nNeighbourSK, nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam,&
+      & ERhoPrim, iSparseStart, tPoisson, tROKS, mixHam, tripHam, rhoMixPrim, rhoTripPrim)
 
     use dftbp_initprogram, only : OCutoffs
 
@@ -1270,6 +1272,12 @@ contains
     !> Third order SCC interactions
     type(ThirdOrder), allocatable, intent(inout) :: thirdOrd
 
+    !> Third order correction for ROKS mixed determinant
+    type(ThirdOrder), allocatable, intent(inout) :: mixThirdOrd
+
+    !> Third order correction for ROKS triplet determinant
+    type(ThirdOrder), allocatable, intent(inout) :: tripThirdOrd
+    
     !> Range separation contributions
     type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
 
@@ -1395,6 +1403,10 @@ contains
     end if
     if (allocated(thirdOrd)) then
       call thirdOrd%updateCoords(neighbourList, species)
+      if (tROKS) then
+        call mixThirdOrd%updateCoords(neighbourList, species)
+        call tripThirdOrd%updateCoords(neighbourList, species)
+      end if
     end if
     if (allocated(rangeSep)) then
        call rangeSep%updateCoords(coord0)
