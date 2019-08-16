@@ -511,9 +511,9 @@ contains
  
       lpSCC: do iSccIter = 1, maxSccIter
 
-        if (iSccIter == 1) then
+        if (iSccIter + iGeoStep == 1) then
           maxROKSIter = 1
-        else if (tROKS .and. iSccIter /= 1) then
+        else if (tROKS .and. iSccIter + iGeoStep > 1) then
           maxROKSIter = 2
         end if
         lpROKS: do iROKSIter = 1, maxROKSIter
@@ -522,7 +522,7 @@ contains
 
           if (tSccCalc) then
 
-            if ((tROKS .and. iSccIter /= 1) .or. tNonAufbau) then
+            if ((tROKS .and. iSccIter + iGeoStep > 1) .or. tNonAufbau) then
               if ((tROKS .and. iROKSIter == 1) .or. (tNonAufbau .and. iDet == 1)) then
                  call getChargePerShell(qTripIn, orb, species, chargePerShell)
               else if ((tROKS .and. iROKSIter == 2) .or. (tNonAufbau .and. iDet == 2)) then
@@ -532,7 +532,8 @@ contains
                call getChargePerShell(qInput, orb, species, chargePerShell)
                write(*,*) 'qInput atom 1'
                do i = 1, size(qInput, 1)
-                  print *, qInput(i,1,:)
+                  write(*,20) qInput(i,1,:)
+                 20 format(5f10.5)
                end do
             end if
 
@@ -544,7 +545,7 @@ contains
             end if
           #:endif
 
-            if ((tROKS .and. iSccIter /= 1) .or. tNonAufbau) then
+            if ((tROKS .and. iSccIter + iGeoStep > 1) .or. tNonAufbau) then
               if ((tROKS .and. iROKSIter == 1) .or. (tNonAufbau .and. iDet == 1)) then
                 call addChargePotentials(env, sccCalc, qTripIn, q0, chargePerShell, orb, species,&
                     & neighbourList, img2CentCell, spinW, tripThirdOrd, potential, electrostatics,&
@@ -585,7 +586,7 @@ contains
             call electronicSolver%elsi%updatePexsiDeltaVRanges(potential)
           end if
 
-          if (tROKS .and. iSccIter /= 1) then
+          if (tROKS .and. iSccIter + iGeoStep > 1) then
             if (iROKSIter == 1) then
               call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb,&
                   & iSparseStart, img2CentCell, potential, tripHam, iHam)
@@ -606,22 +607,57 @@ contains
                 & cellVec, ham, iHam)
           end if
 
-          if (tROKS .and. iSccIter /= 1) then
+          if (tROKS .and. iSccIter + iGeoStep > 1) then
             if (iROKSIter == 1) then
                call convertToUpDownRepr(tripHam, iHam)
 
-               write(*,*) 'tripHam'
-               do i = 1, size(tripHam, 1)
-                  print *, tripHam(i,:)
+!               write(*,*) 'tripHam'
+!               do i = 1, size(tripHam, 1)
+!                  write(*,20) tripHam(i,:)
+!               end do
+
+               call unpackHS(HSqrReal, tripHam(:,1), neighbourList%iNeighbour, nNeighbourSK,&
+                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+
+               write(*,*) 'tripHam alpha'
+               do i = 1, size(HSqrReal,1)
+                  write(*,10) HSqrReal(i,:)
+                  10 format(8f10.5)
                end do
-          
+
+               call unpackHS(HSqrReal, tripHam(:,2), neighbourList%iNeighbour, nNeighbourSK,&
+                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+               write(*,*) 'tripHam beta'
+               do i = 1, size(HSqrReal,1)
+                  write(*,10) HSqrReal(i,:)
+               end do
+               
             else
               call convertToUpDownRepr(mixHam, iHam)
 
-              write(*,*) 'mixHam'
-              do i = 1, size(mixHam, 1)
-                 print *, mixHam(i,:)
-              end do
+!              write(*,*) 'mixHam'
+!              do i = 1, size(mixHam, 1)
+!                 write(*,20) mixHam(i,:)
+!              end do
+
+              call unpackHS(HSqrReal, mixHam(:,1), neighbourList%iNeighbour, nNeighbourSK,&
+                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+
+               write(*,*) 'mixHam alpha'
+               do i = 1, size(HSqrReal,1)
+                  write(*,10) HSqrReal(i,:)
+               end do
+
+               call unpackHS(HSqrReal, mixHam(:,2), neighbourList%iNeighbour, nNeighbourSK,&
+                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+               write(*,*) 'mixHam beta'
+               do i = 1, size(HSqrReal,1)
+                  write(*,10) HSqrReal(i,:)
+               end do
 
            end if
           else
@@ -629,7 +665,7 @@ contains
 
             write(*,*) 'ham'
             do i = 1, size(ham, 1)
-               print *, ham(i,:)
+               write(*,20) ham(i,:)
             end do
           
          end if
@@ -641,15 +677,18 @@ contains
           maxROKSIter = 2
         end if
         
-        if (tROKS .and. iSccIter /= 1) then
+        if (tROKS .and. iSccIter + iGeoStep > 1) then
           call getROKSHam(env, mixHam, tripHam, ham, eigvecsReal, HSqrReal, orb, neighbourList, nNeighbourSK,&
                & denseDesc, iSparseStart, img2CentCell, nEl, parallelKS, rhoPrim, SSqrReal, rhoSqrReal,&
                & deltaRhoOutSqr, over)
         end if
 
+            call unpackHS(HSqrReal, ham(:,1), neighbourList%iNeighbour, nNeighbourSK,&
+                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+            call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
             write(*,*) 'block ham'
-            do i = 1, size(ham, 1)
-               print *, ham(i,:)
+            do i = 1, size(HSqrReal, 1)
+               write(*,10) HSqrReal(i,:)
             end do
        
         call getDensity(env, iSccIter, denseDesc, ham, over, neighbourList, nNeighbourSk,&
@@ -700,11 +739,11 @@ contains
 
                write(*,*) 'qOutput atom 1'
                do i = 1, size(qOutput, 1)
-                  print *, qOutput(i,1,:)
+                  write(*,20) qOutput(i,1,:)
                end do
                write(*,*) 'qOutput atom 2'
                do i = 1, size(qOutput, 1)
-                  print *, qOutput(i,2,:)
+                  write(*,20) qOutput(i,2,:)
                end do
 
           #:if WITH_TRANSPORT
@@ -2987,11 +3026,12 @@ contains
         write(*,*) 'eigvecsReal'
         write(*,*) 'alpha'
         do i = 1, size(eigvecsReal, 1)
-           print *, eigvecsReal(i,:,1)
+           write(*,20) eigvecsReal(i,:,1)
+           20 format(8f10.5)
         end do
         write(*,*) 'beta'
         do i = 1, size(eigvecsReal, 1)
-           print *, eigvecsReal(i,:,2)
+           write(*,20) eigvecsReal(i,:,2)
         end do
     
     lpROKS: do iROKSIter = 1, maxROKSIter
@@ -3006,6 +3046,13 @@ contains
         call fillingSwap(tROKS, iROKSIter, filling, nEl)
       end if
 
+        write(*,*) 'filling'
+        do i = 1, size(filling,1)
+           write(*,20) filling(i,1,:)
+        end do
+        
+
+      
       call env%globalTimer%startTimer(globalTimers%densityMatrix)
       if (nSpin /= 4) then
         if (tRealHS) then
@@ -3014,35 +3061,68 @@ contains
               call getDensityFromRealEigvecs(env, denseDesc, filling(:,1,:), neighbourList,&
                   & nNeighbourSK, iSparseStart, img2CentCell, orb, eigVecsReal, parallelKS,&
                   & rhoTripPrim, SSqrReal, rhoSqrReal, deltaRhoOutSqr)
-              call ud2qm(rhoTripPrim)
+              
 
-              write(*,*) 'rhoTripPrim'
-              do i = 1, size(rhoTripPrim, 1)
-                 print *, rhoTripPrim(i,:)
-              end do
+!              write(*,*) 'rhoTripPrim'
+!              do i = 1, size(rhoTripPrim, 1)
+!                 write(*,20) rhoTripPrim(i,:)
+!              end do
+
+               call unpackHS(HSqrReal, rhoTripPrim(:,1), neighbourList%iNeighbour, nNeighbourSK,&
+                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+
+               write(*,*) 'rhoTrip alpha'
+               do i = 1, size(HSqrReal,1)
+                  write(*,10) HSqrReal(i,:)
+                  10 format(8f10.5)
+               end do
+
+               call unpackHS(HSqrReal, rhoTripPrim(:,2), neighbourList%iNeighbour, nNeighbourSK,&
+                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+               write(*,*) 'rhoTrip beta'
+               do i = 1, size(HSqrReal,1)
+                  write(*,10) HSqrReal(i,:)
+               end do
+
+               call ud2qm(rhoTripPrim)
               
             else
               call getDensityFromRealEigvecs(env, denseDesc, filling(:,1,:), neighbourList,&
                   & nNeighbourSK, iSparseStart, img2CentCell, orb, eigVecsReal, parallelKS,&
                   & rhoMixPrim, SSqrReal, rhoSqrReal, deltaRhoOutSqr)
-              call ud2qm(rhoMixPrim)
-
-              write(*,*) 'rhoMixPrim'
-              do i = 1, size(rhoMixPrim, 1)
-                 print *, rhoMixPrim(i,:)
-              end do
               
+
+!              write(*,*) 'rhoMixPrim'
+!              do i = 1, size(rhoMixPrim, 1)
+!                 write(*,20) rhoMixPrim(i,:)
+!              end do
+
+               call unpackHS(HSqrReal, rhoMixPrim(:,1), neighbourList%iNeighbour, nNeighbourSK,&
+                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+
+               write(*,*) 'rhoMix alpha'
+               do i = 1, size(HSqrReal,1)
+                  write(*,10) HSqrReal(i,:)
+               end do
+
+               call unpackHS(HSqrReal, rhoMixPrim(:,2), neighbourList%iNeighbour, nNeighbourSK,&
+                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+               write(*,*) 'rhoMix beta'
+               do i = 1, size(HSqrReal,1)
+                  write(*,10) HSqrReal(i,:)
+               end do
+
+               call ud2qm(rhoMixPrim)
+               
             end if
           else
             call getDensityFromRealEigvecs(env, denseDesc, filling(:,1,:), neighbourList,&
                 & nNeighbourSK, iSparseStart, img2CentCell, orb, eigVecsReal, parallelKS,&
                 & rhoPrim, SSqrReal, rhoSqrReal, deltaRhoOutSqr)
-
-            write(*,*) 'rhoPrim'
-              do i = 1, size(rhoPrim, 1)
-                 print *, rhoPrim(i,:)
-              end do
-            
           end if
                
         else
@@ -3051,6 +3131,13 @@ contains
               & eigvecsCplx, rhoPrim, SSqrCplx)
         end if
         call ud2qm(rhoPrim)
+
+        if (.not. tROKS) then
+                    write(*,*) 'rhoPrim'
+              do i = 1, size(rhoPrim, 1)
+                 write(*,20) rhoPrim(i,:)
+              end do
+        end if
 
      else
         ! Pauli structure of eigenvectors
@@ -3167,15 +3254,6 @@ contains
             & orb, HSqrReal, SSqrReal)
       end if
 
-      write(*,*) 'HSqrReal'
-      do i = 1, size(HSqrReal, 1)
-         print *, HSqrReal(i,:)
-      end do
-      write(*,*) 'SSqrReal'
-      do i = 1, size(SSqrReal, 1)
-         print *, SSqrReal(i,:)
-      end do
-      
       call diagDenseMtx(electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,iSpin))
       eigvecsReal(:,:,iKS) = HSqrReal
     #:endif
