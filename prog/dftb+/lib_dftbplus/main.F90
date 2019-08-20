@@ -663,10 +663,22 @@ contains
           else
             call convertToUpDownRepr(ham, iHam)
 
-            write(*,*) 'ham'
-            do i = 1, size(ham, 1)
-               write(*,20) ham(i,:)
-            end do
+               call unpackHS(HSqrReal, ham(:,1), neighbourList%iNeighbour, nNeighbourSK,&
+                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+
+               write(*,*) 'Ham alpha'
+               do i = 1, size(HSqrReal,1)
+                  write(*,10) HSqrReal(i,:)
+               end do
+
+               call unpackHS(HSqrReal, ham(:,2), neighbourList%iNeighbour, nNeighbourSK,&
+                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+               write(*,*) 'Ham beta'
+               do i = 1, size(HSqrReal,1)
+                  write(*,10) HSqrReal(i,:)
+               end do
           
          end if
 
@@ -2398,10 +2410,11 @@ contains
     blockIndex(4,2) = orb%nOrb
 
 
-    !Triplet alpha and beta are swapped from ROKS paper
+    !Triplet alpha and beta are consistent with ROKS paper eqn 7 (but not ROKS paper Fig 1)
+    !According to density matrices, fillings match with ROKS DFT fillings
     cHam = 2.0_dp*mixHam(:,1) + 2.0_dp*mixHam(:,2) - tripHam(:,2) - tripHam(:,1)
-    aHam = 2.0_dp*mixHam(:,2) - tripHam(:,2)
-    bHam = 2.0_dp*mixHam(:,1) - tripHam(:,2)
+    aHam = 2.0_dp*mixHam(:,2) - tripHam(:,1)
+    bHam = 2.0_dp*mixHam(:,1) - tripHam(:,1)
 
     hams(:,1,1) = cHam; hams(:,1,2) = cHam-aHam; hams(:,1,3) = cHam-bHam; hams(:,1,4) = 0.5_dp*cHam
     hams(:,2,1) = cHam-aHam; hams(:,2,2) = aHam; hams(:,2,3) = aHam-bHam; hams(:,2,4) = aHam
@@ -3130,13 +3143,28 @@ contains
               & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, orb, parallelKS,&
               & eigvecsCplx, rhoPrim, SSqrCplx)
         end if
-        call ud2qm(rhoPrim)
+        
 
         if (.not. tROKS) then
-                    write(*,*) 'rhoPrim'
-              do i = 1, size(rhoPrim, 1)
-                 write(*,20) rhoPrim(i,:)
-              end do
+
+           call unpackHS(HSqrReal, rhoPrim(:,1), neighbourList%iNeighbour, nNeighbourSK,&
+                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+               write(*,*) 'rho alpha'
+               do i = 1, size(HSqrReal,1)
+                  write(*,10) HSqrReal(i,:)
+               end do
+
+               call unpackHS(HSqrReal, rhoPrim(:,2), neighbourList%iNeighbour, nNeighbourSK,&
+                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+               write(*,*) 'rho beta'
+               do i = 1, size(HSqrReal,1)
+                  write(*,10) HSqrReal(i,:)
+               end do
+               
+               call ud2qm(rhoPrim)
+
         end if
 
      else
