@@ -413,9 +413,8 @@ contains
       if (tROKS .or. tNonAufbau) then
         call reset(pChrgMixerMix, nMixElements)
         call reset(pChrgMixerTrip, nMixElements)
-      else   
-        call reset(pChrgMixer, nMixElements)
-      end if 
+      end if   
+      call reset(pChrgMixer, nMixElements)
     end if
 
     if (electronicSolver%isElsiSolver .and. .not. tLargeDenseMatrices) then
@@ -682,12 +681,11 @@ contains
           
          end if
 
-
         end do lpROKS
-
         if (tROKS) then
           maxROKSIter = 2
         end if
+
         
         if (tROKS .and. iSccIter + iGeoStep > 1) then
           call getROKSHam(env, mixHam, tripHam, ham, eigvecsReal, HSqrReal, orb, neighbourList, nNeighbourSK,&
@@ -732,162 +730,153 @@ contains
           call writeBandOut(bandOut, eigen, filling, kWeight)
         end if
 
-        lpROKS2: do iROKSIter = 1, maxROKSIter
-        
-          if (tMulliken) then
-            if (tROKS) then
-              if (iROKSIter == 1) then
-                call getMullikenPopulation(rhoTripPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
-                    & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
-              else
-                call getMullikenPopulation(rhoMixPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
-                    & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
-              end if
-            else
-              call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
-                  & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
-            end if
-          end if
-
-               write(*,*) 'qOutput atom 1'
-               do i = 1, size(qOutput, 1)
-                  write(*,20) qOutput(i,1,:)
-               end do
-               write(*,*) 'qOutput atom 2'
-               do i = 1, size(qOutput, 1)
-                  write(*,20) qOutput(i,2,:)
-               end do
-
-          #:if WITH_TRANSPORT
-            ! Override charges with uploaded contact charges
-            if (tUpload) then
-              call overrideContactCharges(qOutput, chargeUp, transpar)
-            end if
-          #:endif
-
-          ! For non-dual spin-orbit orbitalL is determined during getDensity() call above
-          if (tDualSpinOrbit) then
-            call getLDual(orbitalL, qiBlockOut, orb, species)
-          end if
-
-          ! Note: if XLBOMD is active, potential created with input charges is needed later,
-          ! therefore it should not be overwritten here.
-          if (tSccCalc .and. .not. tXlbomd) then
-            call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
-            call getChargePerShell(qOutput, orb, species, chargePerShell)
-
-            if (tROKS) then
-              if (iROKSIter == 1) then
-
-                call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
-                    & neighbourList, img2CentCell, spinW, tripThirdOrd, potential, electrostatics,&
-                    & tPoissonTwice, tUpload, shiftPerLUp)
-              else
-                call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
-                    & neighbourList, img2CentCell, spinW, mixThirdOrd, potential, electrostatics,&
-                    & tPoissonTwice, tUpload, shiftPerLUp)
-              end if
-            else
-              call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
-                  & neighbourList, img2CentCell, spinW, thirdOrd, potential, electrostatics,&
-                  & tPoissonTwice, tUpload, shiftPerLUp)
-            end if
-               
-            call addBlockChargePotentials(qBlockOut, qiBlockOut, tDftbU, tImHam, species, orb,&
-                & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
-
-            if (allocated(onSiteElements)) then
-              call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlockOut, qiBlockOut,&
-                  & q0, onSiteElements, species, orb)
-            end if
-
-            potential%intBlock = potential%intBlock + potential%extBlock
-          end if
-
-          if (allocated(qDepExtPot)) then
-            call getChargePerShell(qOutput, orb, species, dQ, qRef=q0)
-            call qDepExtPot%addPotential(sum(dQ(:,:,1), dim=1), dQ(:,:,1), orb, species,&
-                & potential%intBlock)
-          end if
+        if (tMulliken) then
           if (tROKS) then
-            if (iROKSIter == 1) then
-              call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tExtField, tXlbomd,&
-                  & tDftbU, tDualSpinOrbit, rhoTripPrim, H0, orb, neighbourList, nNeighbourSk, img2CentCell,&
-                  & iSparseStart, cellVol, extPressure, TS, potential, energy, tripThirdOrd, rangeSep,&
-                  & qDepExtPot, qBlockOut, qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi,&
-                  & iAtInCentralRegion, tFixEf, Ef, onSiteElements, tNonAufbau, iDet, tSpinPurify)
-            else
-              call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tExtField, tXlbomd,&
-                  & tDftbU, tDualSpinOrbit, rhoMixPrim, H0, orb, neighbourList, nNeighbourSk, img2CentCell,&
-                  & iSparseStart, cellVol, extPressure, TS, potential, energy, mixThirdOrd, rangeSep,&
-                  & qDepExtPot, qBlockOut, qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi,&
-                  & iAtInCentralRegion, tFixEf, Ef, onSiteElements, tNonAufbau, iDet, tSpinPurify)
-            end if
+            call getMullikenPopulation(rhoTripPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
+                & iSparseStart, qTripOut, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
+            call getMullikenPopulation(rhoMixPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
+                & iSparseStart, qMixOut, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
+            !Average triplet and mixed charges 
+            qOutput = (-qTripOut + 2.0_dp*qMixOut) !/ 2.0_dp 
           else
-            call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tExtField, tXlbomd,&
-                & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSk, img2CentCell,&
-                & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, rangeSep,&
-                & qDepExtPot, qBlockOut, qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi,&
-                & iAtInCentralRegion, tFixEf, Ef, onSiteElements, tNonAufbau, iDet, tSpinPurify)
-          end if    
+            call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
+                & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
+          end if
+        end if
 
-          tStopScc = hasStopFile(fStopScc)
+        write(*,*) 'qOutput atom 1'
+        do i = 1, size(qOutput, 1)
+          write(*,20) qOutput(i,1,:)
+        end do
+        write(*,*) 'qOutput atom 2'
+        do i = 1, size(qOutput, 1)
+          write(*,20) qOutput(i,2,:)
+        end do
 
-          ! Mix charges Input/Output
-          if (tSccCalc) then
-            if(.not. tRangeSep) then
-              if (tROKS .or. tNonAufbau) then
-                if ((tROKS .and. iROKSIter == 1) .or. (tNonAufbau .and. iDet == 1)) then
-                  call getNextInputCharges(env, pChrgMixerTrip, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
-                      & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
-                      & tReadChrg, qTripIn, qTripInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
-                      & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
-                      & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS)
-                else if ((tROKS .and. iROKSIter ==2) .or. (tNonAufbau .and. iDet == 2)) then
-                  call getNextInputCharges(env, pChrgMixerMix, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
-                      & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
-                      & tReadChrg, qMixIn, qMixInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
-                      & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
-                      & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS)
-                end if
-              else
-                call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
-                    & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
-                    & tReadChrg, qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
-                    & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
-                    & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS)
-              end if 
-            else
-              call getNextInputDensity(SSqrReal, over, neighbourList, nNeighbourSK,&
-                  & denseDesc%iAtomStart, iSparseStart, img2CentCell, pChrgMixer, qOutput, orb,&
-                  & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tReadChrg, q0,&
-                  & qInput, sccErrorQ, tConverged, deltaRhoOut, deltaRhoIn, deltaRhoDiff)
-              
-            end if
+        #:if WITH_TRANSPORT
+          ! Override charges with uploaded contact charges
+          if (tUpload) then
+            call overrideContactCharges(qOutput, chargeUp, transpar)
+          end if
+        #:endif
 
-            call getSccInfo(iSccIter, energy%Eelec, Eold, diffElec)
-            if (tNegf) then
-              call printSccHeader()
-            end if
-            call printSccInfo(tDftbU, iSccIter, energy%Eelec, diffElec, sccErrorQ)
+        ! For non-dual spin-orbit orbitalL is determined during getDensity() call above
+        if (tDualSpinOrbit) then
+          call getLDual(orbitalL, qiBlockOut, orb, species)
+        end if
 
-            if (tNegf) then
-              call printBlankLine()
-            end if
+        ! Note: if XLBOMD is active, potential created with input charges is needed later,
+        ! therefore it should not be overwritten here.
+        if (tSccCalc .and. .not. tXlbomd) then
+          call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
+          call getChargePerShell(qOutput, orb, species, chargePerShell)
 
-            tWriteSccRestart = env%tGlobalMaster .and. &
-                & needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter,&
-                & tMd, tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc)
-            if (tWriteSccRestart) then
-              call writeCharges(fCharges, tWriteChrgAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn)
-            end if
+          if (tROKS .and. allocated(thirdOrd)) then
+            !How to combine mixed and triplet third order corrections??
+            thirdOrd = mixThirdOrd
+          end if
+          call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
+              & neighbourList, img2CentCell, spinW, thirdOrd, potential, electrostatics,&
+              & tPoissonTwice, tUpload, shiftPerLUp)
+
+          call addBlockChargePotentials(qBlockOut, qiBlockOut, tDftbU, tImHam, species, orb,&
+              & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
+
+          if (allocated(onSiteElements)) then
+            call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlockOut, qiBlockOut,&
+                & q0, onSiteElements, species, orb)
           end if
 
-        end do lpROKS2
+          potential%intBlock = potential%intBlock + potential%extBlock
+        end if
+
+        if (allocated(qDepExtPot)) then
+          call getChargePerShell(qOutput, orb, species, dQ, qRef=q0)
+          call qDepExtPot%addPotential(sum(dQ(:,:,1), dim=1), dQ(:,:,1), orb, species,&
+              & potential%intBlock)
+       end if
+       
+        if (tROKS) then
+          rhoPrim = (rhoMixPrim + rhoTripPrim) / 2.0_dp
+        end if
+        call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tExtField, tXlbomd,&
+            & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSk, img2CentCell,&
+            & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, rangeSep,&
+            & qDepExtPot, qBlockOut, qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi,&
+            & iAtInCentralRegion, tFixEf, Ef, onSiteElements, tNonAufbau, iDet, tSpinPurify)
+
+        tStopScc = hasStopFile(fStopScc)
+
+        ! Mix charges Input/Output
+        if (tSccCalc) then
+          if(.not. tRangeSep) then
+            if (.not. tNonAufbau) then
+
+              !For ROKS, reuse iROKSIter to determine if tConverged or qInput should be written
+              iROKSIter = 1
+              if (tROKS) then
+                qInpRed = (2.0_dp*qMixInpRed - qTripInpRed) !/ 2.0_dp
+              end if
+              !ROKS: qOutput is average, qInpRed is average, new qInput not made
+              call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
+                  & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
+                  & tReadChrg, qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
+                  & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
+                  & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS, iROKSIter)
+            end if
+
+            iROKSIter = 2
+            !tNonAufbau doesn't have separate qOutputs
+            if (tNonAufbau) then
+              qTripOut = qOutput
+              qMixOut = qOutput
+            end if
+            !new triplet qInputs
+            if ((tROKS .and. .not. tConverged) .or. (tNonAufbau .and. iDet == 1)) then
+              call getNextInputCharges(env, pChrgMixerTrip, qTripOut, qOutRed, orb, nIneqOrb, iEqOrbitals,&
+                  & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
+                  & tReadChrg, qTripIn, qTripInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
+                  & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
+                  & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS, iROKSIter)
+            end if
+            !new mixed qInputs
+            if ((tROKS .and. .not. tConverged) .or. (tNonAufbau .and. iDet == 2)) then
+              call getNextInputCharges(env, pChrgMixerMix, qMixOut, qOutRed, orb, nIneqOrb, iEqOrbitals,&
+                  & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
+                  & tReadChrg, qMixIn, qMixInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
+                  & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
+                  & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS, iROKSIter)
+            end if
+
+          else
+            call getNextInputDensity(SSqrReal, over, neighbourList, nNeighbourSK,&
+                & denseDesc%iAtomStart, iSparseStart, img2CentCell, pChrgMixer, qOutput, orb,&
+                & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tReadChrg, q0,&
+                & qInput, sccErrorQ, tConverged, deltaRhoOut, deltaRhoIn, deltaRhoDiff)
+
+          end if
+
+          call getSccInfo(iSccIter, energy%Eelec, Eold, diffElec)
+          if (tNegf) then
+            call printSccHeader()
+          end if
+          call printSccInfo(tDftbU, iSccIter, energy%Eelec, diffElec, sccErrorQ)
+
+          if (tNegf) then
+            call printBlankLine()
+          end if
+
+          tWriteSccRestart = env%tGlobalMaster .and. &
+              & needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter,&
+              & tMd, tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc)
+          if (tWriteSccRestart) then
+            call writeCharges(fCharges, tWriteChrgAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn)
+          end if
+        end if
 
         if (tWriteDetailedOut) then
     ! Has a hard time opening this twice..... Fixing? IDK if this is OK
-            call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter, iDet)
+          call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter, iDet)
           call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
               & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom,&
               & pCoord0Out, q0, qInput, qOutput, eigen, filling, orb, species, tDFTBU,&
@@ -2411,7 +2400,7 @@ contains
 
 
     !Triplet alpha and beta are consistent with ROKS paper eqn 7 (but not ROKS paper Fig 1)
-    !According to density matrices, fillings match with ROKS DFT fillings
+    !According to density matrices, fillings match with QChem ROKS fillings
     cHam = 2.0_dp*mixHam(:,1) + 2.0_dp*mixHam(:,2) - tripHam(:,2) - tripHam(:,1)
     aHam = 2.0_dp*mixHam(:,2) - tripHam(:,1)
     bHam = 2.0_dp*mixHam(:,1) - tripHam(:,1)
@@ -3046,7 +3035,7 @@ contains
         do i = 1, size(eigvecsReal, 1)
            write(*,20) eigvecsReal(i,:,2)
         end do
-    
+
     lpROKS: do iROKSIter = 1, maxROKSIter
 
       call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
@@ -4310,7 +4299,8 @@ contains
   subroutine getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
       & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges, tReadChrg,&
       & qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU, qBlockIn, qiBlockOut,&
-      & iEqBlockDftbuLS, species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS, tROKS)
+      & iEqBlockDftbuLS, species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS, &
+      & tROKS, iROKSConv)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -4407,6 +4397,9 @@ contains
 
     !> Is this an ROKS calculation
     logical, intent(in) :: tROKS
+
+    !> If tROKS, is this to determine convergence or new qInputs?
+    integer, intent(in) :: iROKSConv
     
     real(dp), allocatable :: qDiffRed(:)
     integer :: nSpin
@@ -4415,43 +4408,52 @@ contains
 
     nSpin = size(qOutput, dim=3)
 
+   
     call reduceCharges(orb, nIneqOrb, iEqOrbitals, qOutput, qOutRed, qBlockOut, iEqBlockDftbu,&
          & qiBlockOut, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
 
     qDiffRed = qOutRed - qInpRed
 
-    sccErrorQ = maxval(abs(qDiffRed))
-    if (tROKS) then
-      tConverged = (sccErrorQ < sccTol) .and. (iSccIter >= minSccIter .or. tReadChrg)
-    else
-      tConverged = (sccErrorQ < sccTol)&
-        & .and. (iSccIter >= minSccIter .or. tReadChrg .or. iGeoStep > 0)
-    end if
-    if ((.not. tConverged) .and. (iSccIter /= maxSccIter .and. .not. tStopScc)) then
-      ! Avoid mixing of spin unpolarised density for spin polarised cases, this is only a problem in
-      ! iteration 1, as there is only the (spin unpolarised!) atomic input density at that
-      ! point. (Unless charges had been initialized externally)
-      if ((iSCCIter + iGeoStep) == 1 .and. (nSpin > 1 .or. tMixBlockCharges) .and. .not. tReadChrg)&
-          & then
-        qInpRed(:) = qOutRed
-        qInput(:,:,:) = qOutput
-        if (allocated(qBlockIn)) then
-          qBlockIn(:,:,:,:) = qBlockOut
-          if (allocated(qiBlockIn)) then
-            qiBlockIn(:,:,:,:) = qiBlockOut
-          end if
-        end if
-      else
-        call mix(pChrgMixer, qInpRed, qDiffRed)
-      #:if WITH_MPI
-        ! Synchronise charges in order to avoid mixers that store a history drifting apart
-        call mpifx_allreduceip(env%mpi%globalComm, qInpRed, MPI_SUM)
-        qInpRed(:) = qInpRed / env%mpi%globalComm%size
-      #:endif
-        call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, qBlockIn, iEqBlockDftbu,&
-            & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite,&
-            & iEqBlockOnSiteLS)
+
+    !If tROKS, don't check for convergence for mixed and triplet charges
+    if ((.not. tROKS) .or. (iROKSConv == 1)) then
+      sccErrorQ = maxval(abs(qDiffRed))
+
+      if (.not. tROKS .or. (tROKS .and. iROKSConv == 1)) then
+        tConverged = (sccErrorQ < sccTol)&
+            & .and. (iSccIter >= minSccIter .or. tReadChrg .or. iGeoStep > 0)
+  !    else tConverged = .False.
       end if
+    end if
+
+    !If tROKS, only generate new charges for mixed and triplets
+    if ((.not. tROKS) .or. (tROKS .and. iROKSConv == 2)) then
+      if ((.not. tConverged) .and. (iSccIter /= maxSccIter .and. .not. tStopScc)) then
+        ! Avoid mixing of spin unpolarised density for spin polarised cases, this is only a problem in
+        ! iteration 1, as there is only the (spin unpolarised!) atomic input density at that
+        ! point. (Unless charges had been initialized externally)
+        if ((iSCCIter + iGeoStep) == 1 .and. (nSpin > 1 .or. tMixBlockCharges) .and. .not. tReadChrg)&
+            & then
+          qInpRed(:) = qOutRed
+          qInput(:,:,:) = qOutput
+          if (allocated(qBlockIn)) then
+            qBlockIn(:,:,:,:) = qBlockOut
+            if (allocated(qiBlockIn)) then
+              qiBlockIn(:,:,:,:) = qiBlockOut
+            end if
+          end if
+        else
+          call mix(pChrgMixer, qInpRed, qDiffRed)
+        #:if WITH_MPI
+          ! Synchronise charges in order to avoid mixers that store a history drifting apart
+          call mpifx_allreduceip(env%mpi%globalComm, qInpRed, MPI_SUM)
+          qInpRed(:) = qInpRed / env%mpi%globalComm%size
+        #:endif
+          call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, qBlockIn, iEqBlockDftbu,&
+              & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite,&
+              & iEqBlockOnSiteLS)
+        end if
+      end if 
     end if
 
   end subroutine getNextInputCharges
