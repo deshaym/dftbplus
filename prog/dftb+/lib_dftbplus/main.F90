@@ -529,11 +529,11 @@ contains
               end if
             else
                call getChargePerShell(qInput, orb, species, chargePerShell)
-               write(*,*) 'qInput atom 1'
-               do i = 1, size(qInput, 1)
-                  write(*,20) qInput(i,1,:)
-                 20 format(5f10.5)
-               end do
+!               write(*,*) 'qInput atom 1'
+!               do i = 1, size(qInput, 1)
+!                  write(*,20) qInput(i,1,:)
+!                 20 format(5f10.5)
+!               end do
             end if
 
 
@@ -615,23 +615,23 @@ contains
 !                  write(*,20) tripHam(i,:)
 !               end do
 
-               call unpackHS(HSqrReal, tripHam(:,1), neighbourList%iNeighbour, nNeighbourSK,&
-                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
-
-               write(*,*) 'tripHam alpha'
-               do i = 1, size(HSqrReal,1)
-                  write(*,10) HSqrReal(i,:)
-                  10 format(8f10.5)
-               end do
-
-               call unpackHS(HSqrReal, tripHam(:,2), neighbourList%iNeighbour, nNeighbourSK,&
-                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
-               write(*,*) 'tripHam beta'
-               do i = 1, size(HSqrReal,1)
-                  write(*,10) HSqrReal(i,:)
-               end do
+!               call unpackHS(HSqrReal, tripHam(:,1), neighbourList%iNeighbour, nNeighbourSK,&
+!                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+!               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+!
+!               write(*,*) 'tripHam alpha'
+!               do i = 1, size(HSqrReal,1)
+!                  write(*,10) HSqrReal(i,:)
+!                  10 format(8f10.5)
+!               end do
+!
+!               call unpackHS(HSqrReal, tripHam(:,2), neighbourList%iNeighbour, nNeighbourSK,&
+!                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+!               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+!               write(*,*) 'tripHam beta'
+!               do i = 1, size(HSqrReal,1)
+!                  write(*,10) HSqrReal(i,:)
+!               end do
                
             else
               call convertToUpDownRepr(mixHam, iHam)
@@ -641,43 +641,43 @@ contains
 !                 write(*,20) mixHam(i,:)
 !              end do
 
-              call unpackHS(HSqrReal, mixHam(:,1), neighbourList%iNeighbour, nNeighbourSK,&
-                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
-
-               write(*,*) 'mixHam alpha'
-               do i = 1, size(HSqrReal,1)
-                  write(*,10) HSqrReal(i,:)
-               end do
-
-               call unpackHS(HSqrReal, mixHam(:,2), neighbourList%iNeighbour, nNeighbourSK,&
-                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
-               write(*,*) 'mixHam beta'
-               do i = 1, size(HSqrReal,1)
-                  write(*,10) HSqrReal(i,:)
-               end do
+!              call unpackHS(HSqrReal, mixHam(:,1), neighbourList%iNeighbour, nNeighbourSK,&
+!                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+!               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+!
+!               write(*,*) 'mixHam alpha'
+!               do i = 1, size(HSqrReal,1)
+!                  write(*,10) HSqrReal(i,:)
+!               end do
+!
+!               call unpackHS(HSqrReal, mixHam(:,2), neighbourList%iNeighbour, nNeighbourSK,&
+!                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+!               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+!               write(*,*) 'mixHam beta'
+!               do i = 1, size(HSqrReal,1)
+!                  write(*,10) HSqrReal(i,:)
+!               end do
 
            end if
           else
             call convertToUpDownRepr(ham, iHam)
 
-               call unpackHS(HSqrReal, ham(:,1), neighbourList%iNeighbour, nNeighbourSK,&
-                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
-
-               write(*,*) 'Ham alpha'
-               do i = 1, size(HSqrReal,1)
-                  write(*,10) HSqrReal(i,:)
-               end do
-
-               call unpackHS(HSqrReal, ham(:,2), neighbourList%iNeighbour, nNeighbourSK,&
-                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
-               write(*,*) 'Ham beta'
-               do i = 1, size(HSqrReal,1)
-                  write(*,10) HSqrReal(i,:)
-               end do
+!               call unpackHS(HSqrReal, ham(:,1), neighbourList%iNeighbour, nNeighbourSK,&
+!                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+!               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+!
+!               write(*,*) 'Ham alpha'
+!               do i = 1, size(HSqrReal,1)
+!                  write(*,10) HSqrReal(i,:)
+!               end do
+!
+!               call unpackHS(HSqrReal, ham(:,2), neighbourList%iNeighbour, nNeighbourSK,&
+!                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+!               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+!               write(*,*) 'Ham beta'
+!               do i = 1, size(HSqrReal,1)
+!                  write(*,10) HSqrReal(i,:)
+!               end do
           
          end if
 
@@ -693,13 +693,13 @@ contains
                & deltaRhoOutSqr, over)
         end if
 
-            call unpackHS(HSqrReal, ham(:,1), neighbourList%iNeighbour, nNeighbourSK,&
-                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-            call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
-            write(*,*) 'block ham'
-            do i = 1, size(HSqrReal, 1)
-               write(*,10) HSqrReal(i,:)
-            end do
+!            call unpackHS(HSqrReal, ham(:,1), neighbourList%iNeighbour, nNeighbourSK,&
+!                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+!            call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+!            write(*,*) 'block ham'
+!            do i = 1, size(HSqrReal, 1)
+!               write(*,10) HSqrReal(i,:)
+!            end do
        
         call getDensity(env, iSccIter, denseDesc, ham, over, neighbourList, nNeighbourSk,&
             & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species,&
@@ -737,21 +737,21 @@ contains
             call getMullikenPopulation(rhoMixPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
                 & iSparseStart, qMixOut, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
             !Average triplet and mixed charges 
-            qOutput = (-qTripOut + 2.0_dp*qMixOut) !/ 2.0_dp 
+            qOutput = (-qTripOut + 2.0_dp * qMixOut) !/ 2.0_dp 
           else
             call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
                 & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
           end if
         end if
 
-        write(*,*) 'qOutput atom 1'
-        do i = 1, size(qOutput, 1)
-          write(*,20) qOutput(i,1,:)
-        end do
-        write(*,*) 'qOutput atom 2'
-        do i = 1, size(qOutput, 1)
-          write(*,20) qOutput(i,2,:)
-        end do
+!        write(*,*) 'qOutput atom 1'
+!        do i = 1, size(qOutput, 1)
+!          write(*,20) qOutput(i,1,:)
+!        end do
+!        write(*,*) 'qOutput atom 2'
+!        do i = 1, size(qOutput, 1)
+!          write(*,20) qOutput(i,2,:)
+!        end do
 
         #:if WITH_TRANSPORT
           ! Override charges with uploaded contact charges
@@ -794,7 +794,7 @@ contains
           call getChargePerShell(qOutput, orb, species, dQ, qRef=q0)
           call qDepExtPot%addPotential(sum(dQ(:,:,1), dim=1), dQ(:,:,1), orb, species,&
               & potential%intBlock)
-       end if
+        end if
        
         if (tROKS) then
           rhoPrim = (rhoMixPrim + rhoTripPrim) / 2.0_dp
@@ -815,14 +815,18 @@ contains
               !For ROKS, reuse iROKSIter to determine if tConverged or qInput should be written
               iROKSIter = 1
               if (tROKS) then
-                qInpRed = (2.0_dp*qMixInpRed - qTripInpRed) !/ 2.0_dp
+                qInpRed = (2.0_dp * qMixInpRed - qTripInpRed)! / 2.0_dp
               end if
               !ROKS: qOutput is average, qInpRed is average, new qInput not made
+
+              
+              write(*,*) '*********AVERAGE**********'
               call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
                   & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
                   & tReadChrg, qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
                   & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
                   & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS, iROKSIter)
+              
             end if
 
             iROKSIter = 2
@@ -833,19 +837,25 @@ contains
             end if
             !new triplet qInputs
             if ((tROKS .and. .not. tConverged) .or. (tNonAufbau .and. iDet == 1)) then
+
+              write(*,*) '**********TRIPLET***********' 
               call getNextInputCharges(env, pChrgMixerTrip, qTripOut, qOutRed, orb, nIneqOrb, iEqOrbitals,&
                   & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
                   & tReadChrg, qTripIn, qTripInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
                   & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
                   & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS, iROKSIter)
+              
             end if
             !new mixed qInputs
             if ((tROKS .and. .not. tConverged) .or. (tNonAufbau .and. iDet == 2)) then
+
+              write(*,*) '**************MIXED*********' 
               call getNextInputCharges(env, pChrgMixerMix, qMixOut, qOutRed, orb, nIneqOrb, iEqOrbitals,&
                   & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
                   & tReadChrg, qMixIn, qMixInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
                   & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
                   & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS, iROKSIter)
+
             end if
 
           else
@@ -2430,10 +2440,11 @@ contains
         call getDensityFromRealEigvecs(env, denseDesc, tempFill, neighbourList,&
             & nNeighbourSK, iSparseStart, img2CentCell, orb, eigVecsReal, parallelKS,&
             & rhoPrim, work, rhoSqrReal, deltaRhoOutSqr)
+        
         call unpackHS(rhoSqrs(:,:,i), rhoPrim(:,1), neighbourList%iNeighbour, nNeighbourSK,&
              & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call blockSymmetrizeHS(rhoSqrs(:,:,i), denseDesc%iAtomStart)
-        
+
       else
         rhoSqrs(:,:,i) = 0.0_dp
       end if
@@ -2457,6 +2468,7 @@ contains
         HSqrReal = matmul(projector,work)
 
         !Use beta channel of sparse ham as temporary storage
+        ham(:,2) = 0.0_dp
         call packHS(ham(:,2), HSqrReal, neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb,&
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
 
@@ -2469,7 +2481,6 @@ contains
     ham(:,1) = ham(:,1)*0.5_dp
     ham(:,2) = ham(:,1)
 
- 
   end subroutine getROKSHam
 
 
@@ -3025,36 +3036,49 @@ contains
     call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
 
-        write(*,*) 'eigvecsReal'
-        write(*,*) 'alpha'
-        do i = 1, size(eigvecsReal, 1)
-           write(*,20) eigvecsReal(i,:,1)
-           20 format(8f10.5)
-        end do
-        write(*,*) 'beta'
-        do i = 1, size(eigvecsReal, 1)
-           write(*,20) eigvecsReal(i,:,2)
-        end do
+!        write(*,*) 'eigvecsReal'
+!        write(*,*) 'alpha'
+!        do i = 1, size(eigvecsReal, 1)
+!           write(*,20) eigvecsReal(i,:,1)
+!           20 format(8f10.5)
+!        end do
+!        write(*,*) 'beta'
+!        do i = 1, size(eigvecsReal, 1)
+!           write(*,20) eigvecsReal(i,:,2)
+!        end do
 
     lpROKS: do iROKSIter = 1, maxROKSIter
 
-      call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
-          & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0)
+!      call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
+!          & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0)
 
-      if (tNonAufbau .and. .not. (tGroundGuess .and. iDet==0)) then 
-        call fillingSwap(tSpinPurify, iDet, filling, nEl)
-      end if
-      if (tROKS) then
-        call fillingSwap(tROKS, iROKSIter, filling, nEl)
-      end if
+!      if (tNonAufbau .and. .not. (tGroundGuess .and. iDet==0)) then 
+!        call fillingSwap(tSpinPurify, iDet, filling, nEl)
+!      end if
+!      if (tROKS) then
+!        call fillingSwap(tROKS, iROKSIter, filling, nEl)
+!      end if
+
+
+       if (tROKS) then
+         call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
+            & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0, tROKS, &
+            & tROKS, iROKSIter, nEl)
+       else
+       
+         call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
+            & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0, tNonAufbau, &
+            & tSpinPurify, iDet, nEl)
+       end if
+
+       
 
         write(*,*) 'filling'
         do i = 1, size(filling,1)
            write(*,20) filling(i,1,:)
+           20 format(8f10.5)
         end do
         
-
-      
       call env%globalTimer%startTimer(globalTimers%densityMatrix)
       if (nSpin /= 4) then
         if (tRealHS) then
@@ -3070,23 +3094,23 @@ contains
 !                 write(*,20) rhoTripPrim(i,:)
 !              end do
 
-               call unpackHS(HSqrReal, rhoTripPrim(:,1), neighbourList%iNeighbour, nNeighbourSK,&
-                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
-
-               write(*,*) 'rhoTrip alpha'
-               do i = 1, size(HSqrReal,1)
-                  write(*,10) HSqrReal(i,:)
-                  10 format(8f10.5)
-               end do
-
-               call unpackHS(HSqrReal, rhoTripPrim(:,2), neighbourList%iNeighbour, nNeighbourSK,&
-                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
-               write(*,*) 'rhoTrip beta'
-               do i = 1, size(HSqrReal,1)
-                  write(*,10) HSqrReal(i,:)
-               end do
+!               call unpackHS(HSqrReal, rhoTripPrim(:,1), neighbourList%iNeighbour, nNeighbourSK,&
+!                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+!               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+!
+!               write(*,*) 'rhoTrip alpha'
+!               do i = 1, size(HSqrReal,1)
+!                  write(*,10) HSqrReal(i,:)
+!                  10 format(8f10.5)
+!               end do
+!
+!               call unpackHS(HSqrReal, rhoTripPrim(:,2), neighbourList%iNeighbour, nNeighbourSK,&
+!                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+!               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+!               write(*,*) 'rhoTrip beta'
+!               do i = 1, size(HSqrReal,1)
+!                  write(*,10) HSqrReal(i,:)
+!               end do
 
                call ud2qm(rhoTripPrim)
               
@@ -3101,22 +3125,22 @@ contains
 !                 write(*,20) rhoMixPrim(i,:)
 !              end do
 
-               call unpackHS(HSqrReal, rhoMixPrim(:,1), neighbourList%iNeighbour, nNeighbourSK,&
-                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
-
-               write(*,*) 'rhoMix alpha'
-               do i = 1, size(HSqrReal,1)
-                  write(*,10) HSqrReal(i,:)
-               end do
-
-               call unpackHS(HSqrReal, rhoMixPrim(:,2), neighbourList%iNeighbour, nNeighbourSK,&
-                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
-               write(*,*) 'rhoMix beta'
-               do i = 1, size(HSqrReal,1)
-                  write(*,10) HSqrReal(i,:)
-               end do
+!               call unpackHS(HSqrReal, rhoMixPrim(:,1), neighbourList%iNeighbour, nNeighbourSK,&
+!                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+!               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+!
+!               write(*,*) 'rhoMix alpha'
+!               do i = 1, size(HSqrReal,1)
+!                  write(*,10) HSqrReal(i,:)
+!               end do
+!
+!               call unpackHS(HSqrReal, rhoMixPrim(:,2), neighbourList%iNeighbour, nNeighbourSK,&
+!                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+!               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+!               write(*,*) 'rhoMix beta'
+!               do i = 1, size(HSqrReal,1)
+!                  write(*,10) HSqrReal(i,:)
+!               end do
 
                call ud2qm(rhoMixPrim)
                
@@ -3136,22 +3160,22 @@ contains
 
         if (.not. tROKS) then
 
-           call unpackHS(HSqrReal, rhoPrim(:,1), neighbourList%iNeighbour, nNeighbourSK,&
-                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
-               write(*,*) 'rho alpha'
-               do i = 1, size(HSqrReal,1)
-                  write(*,10) HSqrReal(i,:)
-               end do
-
-               call unpackHS(HSqrReal, rhoPrim(:,2), neighbourList%iNeighbour, nNeighbourSK,&
-                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
-               write(*,*) 'rho beta'
-               do i = 1, size(HSqrReal,1)
-                  write(*,10) HSqrReal(i,:)
-               end do
-               
+!           call unpackHS(HSqrReal, rhoPrim(:,1), neighbourList%iNeighbour, nNeighbourSK,&
+!                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+!               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+!               write(*,*) 'rho alpha'
+!               do i = 1, size(HSqrReal,1)
+!                  write(*,10) HSqrReal(i,:)
+!               end do
+!
+!               call unpackHS(HSqrReal, rhoPrim(:,2), neighbourList%iNeighbour, nNeighbourSK,&
+!                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+!               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+!               write(*,*) 'rho beta'
+!               do i = 1, size(HSqrReal,1)
+!                  write(*,10) HSqrReal(i,:)
+!               end do
+!               
                call ud2qm(rhoPrim)
 
         end if
@@ -3867,10 +3891,12 @@ contains
 
   !> Calculates electron fillings and resulting band energy terms.
   subroutine getFillingsAndBandEnergies(eigvals, nElectrons, nSpinBlocks, tempElec, kWeights,&
-      & tSpinSharedEf, tFillKSep, tFixEf, iDistribFn, Ef, fillings, Eband, TS, E0)
+      & tSpinSharedEf, tFillKSep, tFixEf, iDistribFn, Ef, fillings, Eband, TS, E0, tNonAufbau,&
+      & tSpinPurify, iDet, nEl)
+
 
     !> Eigenvalue of each level, kpoint and spin channel
-    real(dp), intent(in) :: eigvals(:,:,:)
+    real(dp), intent(inout) :: eigvals(:,:,:)
 
     !> Nr. of electrons for each spin channel
     real(dp), intent(in) :: nElectrons(:)
@@ -3912,6 +3938,19 @@ contains
     !> Band energies extrapolated to zero Kelvin
     real(dp), intent(out) :: E0(:)
 
+    !> Is this a non-Aufbau calculation?
+    logical, intent(in) :: tNonAufbau
+
+    !> Is this a spin purified calculation? - MYD
+    logical, intent(in) :: tSpinPurify
+
+    !> Which state is being calculated? 1 = triplet, 2 = mixed !-MYD
+    integer, intent(in) :: iDet
+
+    !> Nuber of electrons
+    real(dp), intent(in) :: nEl(:)
+
+
 
     real(dp) :: EbandTmp(1), TSTmp(1), E0Tmp(1)
     real(dp) :: EfTmp
@@ -3933,12 +3972,13 @@ contains
       ! Fixed value of the Fermi level for each spin channel
       do iS = 1, nSpinHams
         call electronFill(Eband(iS:iS), fillings(:,:,iS:iS), TS(iS:iS), E0(iS:iS), Ef(iS),&
-            & eigvals(:,:,iS:iS), tempElec, iDistribFn, kWeights)
+            & eigvals(:,:,iS:iS), tempElec, iDistribFn, kWeights, tNonAufbau, &
+            & tSpinPurify, iDet, nEl, iS)
       end do
     else if (nSpinHams == 2 .and. tSpinSharedEf) then
       ! Common Fermi level across two colinear spin channels
       call Efilling(Eband, Ef(1), TS, E0, fillings, eigvals, sum(nElecFill), tempElec, kWeights,&
-          & iDistribFn)
+          & iDistribFn, tNonAufbau, tSpinPurify, iDet, nEl, iS)
       Ef(2) = Ef(1)
     else if (tFillKSep) then
       ! Every spin channel and every k-point filled up individually.
@@ -3949,7 +3989,8 @@ contains
       do iS = 1, nSpinHams
         do iK = 1, nKPoints
           call Efilling(EbandTmp, EfTmp, TSTmp, E0Tmp, fillings(:, iK:iK, iS:iS),&
-              & eigvals(:, iK:iK, iS:iS), nElecFill(iS), tempElec, [1.0_dp], iDistribFn)
+              & eigvals(:, iK:iK, iS:iS), nElecFill(iS), tempElec, [1.0_dp], iDistribFn,&
+              & tNonAufbau, tSpinPurify, iDet, nEl, iS)
           Eband(iS) = Eband(iS) + EbandTmp(1) * kWeights(iK)
           Ef(iS) = Ef(iS) + EfTmp * kWeights(iK)
           TS(iS) = TS(iS) + TSTmp(1) * kWeights(iK)
@@ -3960,7 +4001,8 @@ contains
       ! Every spin channel (but no the k-points) filled up individually
       do iS = 1, nSpinHams
         call Efilling(Eband(iS:iS), Ef(iS), TS(iS:iS), E0(iS:iS), fillings(:,:,iS:iS),&
-            & eigvals(:,:,iS:iS), nElecFill(iS), tempElec, kWeights, iDistribFn)
+            & eigvals(:,:,iS:iS), nElecFill(iS), tempElec, kWeights, iDistribFn,&
+            & tNonAufbau, tSpinPurify, iDet, nEl, iS)
       end do
     end if
 
@@ -4408,22 +4450,52 @@ contains
 
     nSpin = size(qOutput, dim=3)
 
-   
     call reduceCharges(orb, nIneqOrb, iEqOrbitals, qOutput, qOutRed, qBlockOut, iEqBlockDftbu,&
          & qiBlockOut, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
 
     qDiffRed = qOutRed - qInpRed
 
 
+    write(*,*) 'qOutput'
+    write(*,*) 'atom1'
+    do i = 1, size(qOutput,1)
+       write(*,10) qOutput(i,1,:)
+    end do
+    10 format(8f10.5)
+    write(*,*) 'atom2'
+    do i = 1, size(qOutput,1)
+       write(*,10) qOutput(i,2,:)
+    end do
+    write(*,*) 'qOutRed'
+    do i = 1, size(qOutRed)
+       write(*,10) qOutRed(i)
+    end do
+    
+    write(*,*) 'qInput'
+    write(*,*) 'atom1'
+    do i = 1, size(qInput,1)
+       write(*,10) qInput(i,1,:)
+    end do
+    write(*,*) 'atom2'
+    do i = 1, size(qInput,1)
+       write(*,10) qInput(i,2,:)
+    end do
+    write(*,*) 'qInpRed'
+    do i = 1, size(qInpRed)
+       write(*,10) qInpRed(i)
+    end do
+
+    write(*,*) 'qDiffRed'
+    do i = 1, size(qDiffRed)
+      write(*,10) qDiffRed(i)
+    end do
+
     !If tROKS, don't check for convergence for mixed and triplet charges
     if ((.not. tROKS) .or. (iROKSConv == 1)) then
       sccErrorQ = maxval(abs(qDiffRed))
 
-      if (.not. tROKS .or. (tROKS .and. iROKSConv == 1)) then
-        tConverged = (sccErrorQ < sccTol)&
-            & .and. (iSccIter >= minSccIter .or. tReadChrg .or. iGeoStep > 0)
-  !    else tConverged = .False.
-      end if
+      tConverged = (sccErrorQ < sccTol)&
+          & .and. (iSccIter >= minSccIter .or. tReadChrg .or. iGeoStep > 0)
     end if
 
     !If tROKS, only generate new charges for mixed and triplets
@@ -4455,6 +4527,22 @@ contains
         end if
       end if 
     end if
+
+    write(*,*) 'qInput'
+    write(*,*) 'atom1'
+    do i = 1, size(qInput,1)
+       write(*,10) qInput(i,1,:)
+    end do
+    write(*,*) 'atom2'
+    do i = 1, size(qInput,1)
+       write(*,10) qInput(i,2,:)
+    end do
+    write(*,*) 'qInpRed'
+    do i = 1, size(qInpRed)
+       write(*,10) qInpRed(i)
+    end do
+
+   
 
   end subroutine getNextInputCharges
 
