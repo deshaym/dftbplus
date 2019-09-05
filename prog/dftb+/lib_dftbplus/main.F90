@@ -691,6 +691,7 @@ contains
           call getROKSHam(env, mixHam, tripHam, ham, eigvecsReal, HSqrReal, orb, neighbourList, nNeighbourSK,&
                & denseDesc, iSparseStart, img2CentCell, nEl, parallelKS, rhoPrim, SSqrReal, rhoSqrReal,&
                & deltaRhoOutSqr, over)
+!           ham = tripHam
         end if
 
 !            call unpackHS(HSqrReal, ham(:,1), neighbourList%iNeighbour, nNeighbourSK,&
@@ -737,7 +738,7 @@ contains
             call getMullikenPopulation(rhoMixPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
                 & iSparseStart, qMixOut, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
             !Average triplet and mixed charges 
-            qOutput = (-qTripOut + 2.0_dp * qMixOut) !/ 2.0_dp 
+            qOutput = (qTripOut + qMixOut) / 2.0_dp 
           else
             call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
                 & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
@@ -773,7 +774,7 @@ contains
 
           if (tROKS .and. allocated(thirdOrd)) then
             !How to combine mixed and triplet third order corrections??
-            thirdOrd = mixThirdOrd
+            thirdOrd = tripThirdOrd
           end if
           call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
               & neighbourList, img2CentCell, spinW, thirdOrd, potential, electrostatics,&
@@ -797,7 +798,7 @@ contains
         end if
        
         if (tROKS) then
-          rhoPrim = (rhoMixPrim + rhoTripPrim) / 2.0_dp
+          rhoPrim = (rhoTripPrim + rhoMixPrim) / 2.0_dp
         end if
         call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tExtField, tXlbomd,&
             & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSk, img2CentCell,&
@@ -815,7 +816,7 @@ contains
               !For ROKS, reuse iROKSIter to determine if tConverged or qInput should be written
               iROKSIter = 1
               if (tROKS) then
-                qInpRed = (2.0_dp * qMixInpRed - qTripInpRed)! / 2.0_dp
+                qInpRed = (qTripInpRed + qMixInpRed) / 2.0_dp
               end if
               !ROKS: qOutput is average, qInpRed is average, new qInput not made
 
@@ -3049,27 +3050,27 @@ contains
 
     lpROKS: do iROKSIter = 1, maxROKSIter
 
-!      call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
-!          & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0)
+      call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
+          & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0)
 
-!      if (tNonAufbau .and. .not. (tGroundGuess .and. iDet==0)) then 
-!        call fillingSwap(tSpinPurify, iDet, filling, nEl)
-!      end if
-!      if (tROKS) then
-!        call fillingSwap(tROKS, iROKSIter, filling, nEl)
-!      end if
+      if (tNonAufbau .and. .not. (tGroundGuess .and. iDet==0)) then 
+        call fillingSwap(tSpinPurify, iDet, filling, nEl)
+      end if
+      if (tROKS) then
+        call fillingSwap(tROKS, iROKSIter, filling, nEl)
+      end if
 
 
-       if (tROKS) then
-         call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
-            & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0, tROKS, &
-            & tROKS, iROKSIter, nEl)
-       else
+!       if (tROKS) then
+!         call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
+!            & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0, tROKS, &
+!            & tROKS, iROKSIter, nEl)
+!       else
        
-         call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
-            & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0, tNonAufbau, &
-            & tSpinPurify, iDet, nEl)
-       end if
+!         call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
+!            & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0, tNonAufbau, &
+!            & tSpinPurify, iDet, nEl)
+!       end if
 
        
 
@@ -3891,8 +3892,8 @@ contains
 
   !> Calculates electron fillings and resulting band energy terms.
   subroutine getFillingsAndBandEnergies(eigvals, nElectrons, nSpinBlocks, tempElec, kWeights,&
-      & tSpinSharedEf, tFillKSep, tFixEf, iDistribFn, Ef, fillings, Eband, TS, E0, tNonAufbau,&
-      & tSpinPurify, iDet, nEl)
+      & tSpinSharedEf, tFillKSep, tFixEf, iDistribFn, Ef, fillings, Eband, TS, E0) !, tNonAufbau,&
+!      & tSpinPurify, iDet, nEl)
 
 
     !> Eigenvalue of each level, kpoint and spin channel
@@ -3939,16 +3940,16 @@ contains
     real(dp), intent(out) :: E0(:)
 
     !> Is this a non-Aufbau calculation?
-    logical, intent(in) :: tNonAufbau
+!    logical, intent(in) :: tNonAufbau
 
     !> Is this a spin purified calculation? - MYD
-    logical, intent(in) :: tSpinPurify
+!    logical, intent(in) :: tSpinPurify
 
     !> Which state is being calculated? 1 = triplet, 2 = mixed !-MYD
-    integer, intent(in) :: iDet
+!    integer, intent(in) :: iDet
 
     !> Nuber of electrons
-    real(dp), intent(in) :: nEl(:)
+!    real(dp), intent(in) :: nEl(:)
 
 
 
@@ -3972,13 +3973,13 @@ contains
       ! Fixed value of the Fermi level for each spin channel
       do iS = 1, nSpinHams
         call electronFill(Eband(iS:iS), fillings(:,:,iS:iS), TS(iS:iS), E0(iS:iS), Ef(iS),&
-            & eigvals(:,:,iS:iS), tempElec, iDistribFn, kWeights, tNonAufbau, &
-            & tSpinPurify, iDet, nEl, iS)
+            & eigvals(:,:,iS:iS), tempElec, iDistribFn, kWeights) !, tNonAufbau, &
+!            & tSpinPurify, iDet, nEl, iS)
       end do
     else if (nSpinHams == 2 .and. tSpinSharedEf) then
       ! Common Fermi level across two colinear spin channels
       call Efilling(Eband, Ef(1), TS, E0, fillings, eigvals, sum(nElecFill), tempElec, kWeights,&
-          & iDistribFn, tNonAufbau, tSpinPurify, iDet, nEl, iS)
+          & iDistribFn) !, tNonAufbau, tSpinPurify, iDet, nEl, iS)
       Ef(2) = Ef(1)
     else if (tFillKSep) then
       ! Every spin channel and every k-point filled up individually.
@@ -3989,8 +3990,8 @@ contains
       do iS = 1, nSpinHams
         do iK = 1, nKPoints
           call Efilling(EbandTmp, EfTmp, TSTmp, E0Tmp, fillings(:, iK:iK, iS:iS),&
-              & eigvals(:, iK:iK, iS:iS), nElecFill(iS), tempElec, [1.0_dp], iDistribFn,&
-              & tNonAufbau, tSpinPurify, iDet, nEl, iS)
+              & eigvals(:, iK:iK, iS:iS), nElecFill(iS), tempElec, [1.0_dp], iDistribFn) !,&
+!              & tNonAufbau, tSpinPurify, iDet, nEl, iS)
           Eband(iS) = Eband(iS) + EbandTmp(1) * kWeights(iK)
           Ef(iS) = Ef(iS) + EfTmp * kWeights(iK)
           TS(iS) = TS(iS) + TSTmp(1) * kWeights(iK)
@@ -4001,8 +4002,8 @@ contains
       ! Every spin channel (but no the k-points) filled up individually
       do iS = 1, nSpinHams
         call Efilling(Eband(iS:iS), Ef(iS), TS(iS:iS), E0(iS:iS), fillings(:,:,iS:iS),&
-            & eigvals(:,:,iS:iS), nElecFill(iS), tempElec, kWeights, iDistribFn,&
-            & tNonAufbau, tSpinPurify, iDet, nEl, iS)
+            & eigvals(:,:,iS:iS), nElecFill(iS), tempElec, kWeights, iDistribFn) !,&
+!            & tNonAufbau, tSpinPurify, iDet, nEl, iS)
       end do
     end if
 
@@ -4456,39 +4457,39 @@ contains
     qDiffRed = qOutRed - qInpRed
 
 
-    write(*,*) 'qOutput'
-    write(*,*) 'atom1'
-    do i = 1, size(qOutput,1)
-       write(*,10) qOutput(i,1,:)
-    end do
+!    write(*,*) 'qOutput'
+!    write(*,*) 'atom1'
+!    do i = 1, size(qOutput,1)
+!       write(*,10) qOutput(i,1,:)
+!    end do
     10 format(8f10.5)
-    write(*,*) 'atom2'
-    do i = 1, size(qOutput,1)
-       write(*,10) qOutput(i,2,:)
-    end do
-    write(*,*) 'qOutRed'
-    do i = 1, size(qOutRed)
-       write(*,10) qOutRed(i)
-    end do
-    
-    write(*,*) 'qInput'
-    write(*,*) 'atom1'
-    do i = 1, size(qInput,1)
-       write(*,10) qInput(i,1,:)
-    end do
-    write(*,*) 'atom2'
-    do i = 1, size(qInput,1)
-       write(*,10) qInput(i,2,:)
-    end do
-    write(*,*) 'qInpRed'
-    do i = 1, size(qInpRed)
-       write(*,10) qInpRed(i)
-    end do
-
-    write(*,*) 'qDiffRed'
-    do i = 1, size(qDiffRed)
-      write(*,10) qDiffRed(i)
-    end do
+!    write(*,*) 'atom2'
+!    do i = 1, size(qOutput,1)
+!       write(*,10) qOutput(i,2,:)
+!    end do
+!    write(*,*) 'qOutRed'
+!    do i = 1, size(qOutRed)
+!       write(*,10) qOutRed(i)
+!    end do
+!    
+!    write(*,*) 'qInput'
+!    write(*,*) 'atom1'
+!    do i = 1, size(qInput,1)
+!       write(*,10) qInput(i,1,:)
+!    end do
+!    write(*,*) 'atom2'
+!    do i = 1, size(qInput,1)
+!       write(*,10) qInput(i,2,:)
+!    end do
+!    write(*,*) 'qInpRed'
+!    do i = 1, size(qInpRed)
+!       write(*,10) qInpRed(i)
+!    end do
+!
+!    write(*,*) 'qDiffRed'
+!    do i = 1, size(qDiffRed)
+!      write(*,10) qDiffRed(i)
+!    end do
 
     !If tROKS, don't check for convergence for mixed and triplet charges
     if ((.not. tROKS) .or. (iROKSConv == 1)) then

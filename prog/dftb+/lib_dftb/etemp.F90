@@ -24,7 +24,7 @@ module dftbp_etemp
   implicit none
   private
 
-  public :: Efilling, electronFill, Fermi, Gaussian, Methfessel, momFillingSwap
+  public :: Efilling, electronFill, Fermi, Gaussian, Methfessel, fillingSwap
 
 
   !> Definition of a type of broadening function - Fermi-Dirac in this case
@@ -54,8 +54,7 @@ contains
   !> filling for different k-points and/or spins.
   !>
   !> Note: If no electrons are present, the Fermi energy is set to zero per default.
-  subroutine Efilling(Ebs, Ef, TS, E0, filling, eigenvals, nElectrons, kT, kWeight, distrib, tNonAufbau, &
-             & tSpinPurify, iDet, nEl, iS)
+  subroutine Efilling(Ebs, Ef, TS, E0, filling, eigenvals, nElectrons, kT, kWeight, distrib)
 
     !> Band structure energy at T
     real(dp), intent(out) :: Ebs(:)
@@ -73,7 +72,7 @@ contains
     real(dp), intent(out) :: filling(:,:,:)
 
     !> The eigenvalues of the levels, 1st index is energy 2nd index is k-point and 3nd index is spin
-    real(dp), intent(inout) :: eigenvals(:,:,:)
+    real(dp), intent(in) :: eigenvals(:,:,:)
 
     !> Number of electrons
     real(dp), intent(in) :: nElectrons
@@ -84,26 +83,11 @@ contains
     !> k-point weightings
     real(dp), intent(in) :: kWeight(:)
 
-
-
     !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
     !> supported. The flags is defined symbolically, so (Methfessel + 2) gives the 2nd order M-P
 
     !> scheme
     integer, intent(in) :: distrib
-
-    !> Is this a non-Aufbau calculation?
-    logical, intent(in) :: tNonAufbau
-
-    !> Is this a spin purified calculation? - MYD
-    logical, intent(in) :: tSpinPurify
-
-    !> Which state is being calculated? 1 = triplet, 2 = mixed !-MYD
-    integer, intent(in) :: iDet
-
-    !> Number of electrons and spin channel index
-    real(dp), intent(in) :: nEl(:)
-    integer, intent(in) :: iS
 
 
 
@@ -142,8 +126,7 @@ contains
       Ef = middleGap(eigenvals, kWeight, nElectrons)
       nElec = electronCount(Ef, eigenvals, kT, distrib, kWeight)
       if (abs(nElectrons - nElec) <= elecTolMax) then
-        call electronFill(Ebs, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeight, tNonAufbau, &
-             & tSpinPurify, iDet, nEl, iS)
+        call electronFill(Ebs, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeight)
         return
       end if
     end if
@@ -216,8 +199,7 @@ contains
     end if
 
     nElec = electronCount(Ef, eigenvals, kT, distrib, kWeight)
-    call electronFill(Ebs,filling,TS,E0,Ef,eigenvals,kT,distrib,kWeight, tNonAufbau, &
-             & tSpinPurify, iDet, nEl, iS)
+    call electronFill(Ebs,filling,TS,E0,Ef,eigenvals,kT,distrib,kWeight)
 
     ! re-scale to give exact number of electrons, this is a temporay hack
     if (nElec > epsilon(1.0_dp)) then
@@ -233,14 +215,14 @@ contains
     !> Fermi energy for given distribution
     real(dp) :: electronCount
 
-    !> Thermal energy in atomic units
+    !> The eigenvalues of the levels, 1st index is energy 2nd index is k-point and 3nd index is spin
     real(dp), intent(in) :: Ef
 
-    !> The eigenvalues of the levels, 1st index is energy 2nd index is k-point and 3nd index is spin
-    real(dp), intent(inout) :: eigenvals(:,:,:)
+    !> Thermal energy in atomic units
+    real(dp), intent(in) :: eigenvals(:,:,:)
 
     !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
-    !> supported. The flags are defined sumbolically, so (Methfessel + 2) gives the 2nd order M-P
+    !> supported. The flags is defined sumbolically, so (Methfessel + 2) gives the 2nd order M-P
 
     !> scheme
     real(dp), intent(in) :: kT
@@ -287,16 +269,11 @@ contains
           end do
         end do
       end do
-
-
     else
-
-
-      do ispin = 1, size(eigenvals,dim=3) !1-1
-        do i = 1, size(kWeight) !1-1
-          do j = 1, size(eigenvals,dim=1) !1-22
+      do ispin = 1, size(eigenvals,dim=3)
+        do i = 1, size(kWeight)
+          do j = 1, size(eigenvals,dim=1)
             x = ( eigenvals(j,i,ispin) - Ef ) / kT
-!write(*,*)'x',x
             ! Where the compiler does not handle inf gracefully, trap the exponential function for
             ! small input values
 #:if EXP_TRAP
@@ -305,7 +282,6 @@ contains
             end if
 #:else
             electronCount = electronCount + kWeight(i)/(1.0_dp + exp(x))
-
 #:endif
           end do
         end do
@@ -327,7 +303,7 @@ contains
     real(dp), intent(in) :: Ef
 
     !> 2nd index is k-point and 3nd index is spin
-    real(dp), intent(inout) :: eigenvals(:,:,:)
+    real(dp), intent(in) :: eigenvals(:,:,:)
 
     !> Thermal energy in atomic units
     real(dp), intent(in) :: kT
@@ -378,8 +354,7 @@ contains
   !> Ref: G. Kresse and J. Furthm&uuml;ller, Phys. Rev. B vol 54, pp 11169 (1996).
   !> Ref: M. Methfessel and A. T. Paxton,, Phys. Rev. B vol 40, pp 3616 (1989).
   !> Ref: F. Wagner, Th.\ Laloyaux and M. Scheffler, Phys. Rev. B, vol 57 pp 2102 (1998).
-  subroutine electronFill(Eband, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeights, tNonAufbau, &
-             & tSpinPurify, iDet, nEl, iS)
+  subroutine electronFill(Eband, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeights)
 
     !> Band structure energy at T
     real(dp), intent(out) :: Eband(:)
@@ -397,7 +372,7 @@ contains
     real(dp), intent(in) :: Ef
 
     !> The eigenvalues of the levels, 1st index is energy 2nd index is k-point and 3nd index is spin
-    real(dp), intent(inout) :: eigenvals(:,:,:)
+    real(dp), intent(in) :: eigenvals(:,:,:)
 
     !> Thermal energy in atomic units
     real(dp), intent(in) :: kT
@@ -411,26 +386,12 @@ contains
     !> k-point weightings
     real(dp), intent(in) :: kWeights(:)
 
-    !> Is this a non-Aufbau calculation?
-    logical, intent(in) :: tNonAufbau
 
-    !> Is this a spin purified calculation? - MYD
-    logical, intent(in) :: tSpinPurify
-
-    !> Which state is being calculated? 1 = triplet, 2 = mixed !-MYD
-    integer, intent(in) :: iDet
-
-    !> Number of electrons and spin channel index
-    real(dp), intent(in) :: nEl(:)
-    integer, intent(in) :: iS
-
-
-    real(dp) :: swapfill
     integer :: MPorder
     integer :: kpts
     real(dp) :: w
     real(dp), allocatable :: A(:)
-    real(dp), allocatable :: hermites(:), tmpMtx(:,:,:)
+    real(dp), allocatable :: hermites(:)
     integer :: i, j , k, l, iSpin
     real(dp) :: occ, x
 
@@ -448,7 +409,6 @@ contains
 
     ! The Gaussian and Methfessel-Paxton broadening functions first
     if (distrib /= Fermi) then
-!Not this one
       MPorder = distrib - 1
       allocate(A(0:MPorder))
       allocate(hermites(0 : 2 * MPorder))
@@ -491,28 +451,7 @@ contains
       end do
       TS = TS * kT
       E0(:) = (real(MPorder + 1,dp) * (Eband - TS) + Eband) / real(MPorder + 2, dp)
-
-
-
     else
-
-      if (tNonAufbau) then
-        allocate(tmpMtx(size(eigenvals, dim=1),kpts,size(eigenvals, dim=3)))
-        tmpMtx=eigenvals
-        do iSpin = 1, size(eigenvals, dim=3)
-          do i = 1, kpts
-            if (iDet == 1 .and. tSpinPurify .and. iS==1) then
-              eigenvals(int(nEl(iS)) + 1, i, iSpin)=eigenvals(int(nEl(iS)), i, iSpin)
-            else if (iDet == 1 .and. tSpinPurify .and. iS==2) then
-              eigenvals(int(nEl(iS)), i, iSpin)=eigenvals(int(nEl(iS)) + 1, i, iSpin)
-            else if (iS==1) then
-              swapfill = eigenvals(int(nEl(iS)) + 1, iSpin, iSpin)
-              eigenvals(int(nEl(iS)) + 1, iSpin, iSpin) = eigenvals(int(nEl(iS)), iSpin, iSpin)
-              eigenvals(int(nEl(iS)), iSpin, iSpin)  = swapfill
-            end if
-          end do
-        end do
-      end if
       do iSpin = 1, size(eigenvals, dim=3)
         do i = 1, kpts
           do j = 1, size(eigenvals, dim=1)
@@ -528,9 +467,7 @@ contains
 #:else
             filling(j, i, iSpin) = 1.0_dp / (1.0_dp + exp(x))
 #:endif
-            if (tNonAufbau .and. j/=1 .and. ((filling(j, i, iSpin)+filling(j-1, i, iSpin))) <= elecTol) then
-              exit
-            else if (filling(j, i, iSpin)<=elecTol .and. .not. tNonAufbau) then
+            if (filling(j, i, iSpin) <= elecTol) then
               exit
             end if
             if (filling(j, i, iSpin) > epsilon(0.0_dp) .and.&
@@ -545,62 +482,45 @@ contains
           end do
         end do
       end do
-      if (tNonAufbau) then
-        eigenvals=tmpMtx
-      end if
       TS(:) = TS * kT
       E0(:) = Eband - 0.5_dp * TS
     end if
 
-
   end subroutine electronFill
 
 
-  subroutine momFillingSwap(indxMOM, prjMOM, filling, fillMOM, nEl)
-
-    !> Index of projection values MOM
-    integer, intent(in) :: indxMOM(:)
-
-    !> Projection vector to be sorted
-    real(dp), intent(in) :: prjMOM(:)
+  subroutine fillingSwap(tSpinPurify, iDet, filling, nEl)
 
 
-    !> occupations (level, kpoint, spin)
+    !> Is this a spin purified calculation? - MYD
+    logical, intent(in) :: tSpinPurify
+
+    !> Which state is being calculated? 1 = triplet, 2 = mixed !-MYD
+    integer, intent(in) :: iDet
+
+    !> Fillings (orbital, kpoint, spin)
     real(dp), intent(inout) :: filling(:,:,:)
-
-    !> Temporary filling
-    real(dp), intent(inout) :: fillMOM(:)
 
     !> Nuber of electrons
     real(dp), intent(in) :: nEl(:)
 
-    integer :: i
-    integer :: j
-    integer :: k
-    integer :: n
-    integer :: iSpin
-
-    n = size(nEl, DIM=1) !2
-    i = size(filling, DIM=1) !90
-    j = size(filling, DIM=2) !1 maybe is the k points... eh? its one for now
-                             ! just dont want ones floating around
-    do iSpin = 1, n
-      k = 0
-      do while (k < i)
-        fillMOM(1 + k) = filling(indxMOM(i - k), 1, iSpin)
-        k = k + j
-      end do
-      filling(:, 1, iSpin) = fillMOM(:)
-    end do
+    integer :: iSpin =1
+    real(dp) :: swapfill
+ 
+    if (iDet == 1 .and. tSpinPurify) then
+      swapfill = filling(int(nEl(1)) + 1, iSpin, iSpin) ! S = alpha LUMO
+      filling(int(nEl(1)) + 1, iSpin, iSpin) = filling(int(nEl(2)), iSpin, iSpin + 1) ! alpha LUMO = beta HOMO
+      filling(int(nEl(2)), iSpin, iSpin + 1)  = swapfill ! beta HOMO = S
+    else
+      swapfill = filling(int(nEl(1)) + 1, iSpin, iSpin) ! S = alpha LUMO
+      filling(int(nEl(1)) + 1, iSpin, iSpin) = filling(int(nEl(1)), iSpin, iSpin) ! alpha LUMO = alpha HOMO
+      filling(int(nEl(1)), iSpin, iSpin)  = swapfill ! alpha HOMO = S
+    end if
 
 
-    write (*,*) 'Filling****************************mom'
-    do i=1,ubound(filling,1)
-       print *, i, filling(i, :, :)
-    enddo
 
 
-  end subroutine momFillingSwap
+  end subroutine fillingSwap
 
 
 
@@ -632,7 +552,7 @@ contains
   function middleGap(eigenvals, kWeight, nElectrons)
 
     !> Eigenvalues of states
-    real(dp), intent(inout) :: eigenvals(:,:,:)
+    real(dp), intent(in) :: eigenvals(:,:,:)
 
     !> Weights of k-points
     real(dp), intent(in) :: kWeight(:)
@@ -661,18 +581,17 @@ contains
       iSpin = (iLev - 1) / (size1 * size2) + 1
       nElec = nElec + kWeight(iKpt)
       ind = ind + 1
-
     end do
 
     ! just in case the system has all levels filled, but eventually this means Ef has to be above
     ! last eigenvalue:
     ind = min(size(eigenvals), ind)
+
     iLev = tmpIndx(ind)
     jOrb = mod(iLev - 1, size1) + 1
     jKpt = mod((iLev - 1) / size1, size2) + 1
     jSpin = (iLev - 1) / (size1 * size2) + 1
     middleGap = 0.5_dp * (eigenvals(jOrb, jKpt, jSpin) + eigenvals(iOrb, iKpt, iSpin))
-
 
   end function middleGap
 
