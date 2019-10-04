@@ -261,6 +261,7 @@ contains
     real(dp) :: invNorm
     integer :: nn_1
     integer :: ii
+    integer :: i
 
     nn_1 = nn - 1
 
@@ -296,6 +297,8 @@ contains
       ww(nn_1) = minWeight
     end if
 
+    write(*,*) 'ww(nn_1)', ww(nn_1)
+    
     ! Build |DF(m-1)> and  (m is the current iteration number)
     dF_uu(:) = qDiff(:) - qDiffLast(:)
     invNorm = sqrt(dot_product(dF_uu, dF_uu))
@@ -331,12 +334,16 @@ contains
     qInpLast(:) = qInpResult(:)
     qDiffLast(:) = qDiff(:)
 
+    write(*,*) 'qInpResult first element during build'
     ! Build new vector
     qInpResult(:) = qInpResult + alpha * qDiff(:)
+    write(*,*) qInpResult(1)
     do ii = 1, nn-2
       qInpResult(:) = qInpResult - ww(ii) * gamma(1,ii) * uu(:,ii)
+      write(*,*) qInpResult(1) 
     end do
     qInpResult(:) = qInpResult - ww(nn_1) * gamma(1,nn_1) * dF_uu
+    write(*,*) qInpResult(1) 
 
     ! Save |u(m-1)>
     uu(:, nn_1) = dF_uu

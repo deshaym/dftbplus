@@ -1787,21 +1787,22 @@ contains
         call init(pChrgMixer, pAndersonMixer)
        
       case (mixerTypes%broyden)
+        allocate(pBroydenMixer)
+        call init(pBroydenMixer, maxSccIter, mixParam, input%ctrl%broydenOmega0,&
+            & input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight, input%ctrl%broydenWeightFac)
+        call init(pChrgMixer, pBroydenMixer)  
+
         if (tROKS .or. tNonAufbau) then
           allocate(pBroydenMixer)
           call init(pBroydenMixer, maxSccIter, mixParam, input%ctrl%broydenOmega0,&
               & input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight, input%ctrl%broydenWeightFac)
-          call init(pChrgMixerMix, pBroydenMixer)
+          call init(pChrgMixerTrip, pBroydenMixer)
           allocate(pBroydenMixer)
           call init(pBroydenMixer, maxSccIter, mixParam, input%ctrl%broydenOmega0,&
               & input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight, input%ctrl%broydenWeightFac)
-          call init(pChrgMixerTrip, pBroydenMixer)
+          call init(pChrgMixerMix, pBroydenMixer)
         end if
 
-        allocate(pBroydenMixer)
-        call init(pBroydenMixer, maxSccIter, mixParam, input%ctrl%broydenOmega0,&
-            & input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight, input%ctrl%broydenWeightFac)
-        call init(pChrgMixer, pBroydenMixer)
 
       case(mixerTypes%diis)
         if (tROKS .or. tNonAufbau) then
