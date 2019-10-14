@@ -107,7 +107,7 @@ contains
     !> Information about the orbitals
     type(TOrbitals), intent(in) :: orb
 
-    integer :: iAt1, iSp1, iSh1, nAtom, iSh1l, iSh1r, nSh1
+    integer :: iAt1, iSp1, iSh1, nAtom, iSh1l, iSh1r, nSh1, i
 
     nAtom = size(orb%nOrbAtom)
 
@@ -130,6 +130,21 @@ contains
       end do
     end do
 
+!    qq(1,1,1) = 2
+!    qq(1,1,2) = 1
+!    qq(1,2,1) = 0
+    
+    write(*,*) 'q0'
+    write(*,*) 'atom1'
+    do i = 1, size(qq,1)
+       write(*,10) qq(i,1,:)
+    end do
+    10 format(8f10.5)
+    write(*,*) 'atom2'
+    do i = 1, size(qq,1)
+       write(*,10) qq(i,2,:)
+    end do
+    
   end subroutine initQFromShellChrg
 
   !> Initialise charge vector from user-defined reference atomic-charges.
