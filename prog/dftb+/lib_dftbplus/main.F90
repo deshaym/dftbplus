@@ -373,6 +373,16 @@ contains
     ! ROKS loop
     integer :: iROKSIter
 
+    ! ROKS: qOutRed difference between mixed and triplet charges
+    real(dp) :: dQOutRed(nIneqOrb)
+
+    ! ROKS: mixed reduced charges
+    real(dp) :: qMixOutRed(nIneqOrb)
+    
+    ! ROKS: triplet reduced charges
+    real(dp) :: qTripOutRed(nIneqOrb)
+    
+
     integer :: i
     integer :: j
 
@@ -535,7 +545,7 @@ contains
 
 20                format(5f10.5)
             
-            if(tROKS .or. tNonAufbau) then
+            if ((tROKS .or. tNonAufbau) .and. iROKSIter == 1) then
                write(*,*) 'qTripIn'
                write(*,*) 'atom1'
                do i = 1, size(qTripIn, 1)
@@ -557,6 +567,7 @@ contains
                end do
              end if
 
+             if (iROKSIter == 1) then
                write(*,*) 'qInput'
                write(*,*) 'atom1'
                do i = 1, size(qInput, 1)
@@ -566,6 +577,7 @@ contains
                do i = 1, size(qInput, 1)
                   write(*,20) qInput(i,2,:)
                end do
+             end if
                
             
           #:if WITH_TRANSPORT
@@ -768,11 +780,10 @@ contains
             call getMullikenPopulation(rhoMixPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
                 & iSparseStart, qMixOut, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
             rhoPrim = 2.0_dp*rhoMixPrim - rhoTripPrim
-            qOutput = 2.0_dp*qMixOut - qTripOut
-          else
-            call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
-                & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
+!            qOutput = 2.0_dp*qMixOut - qTripOut
           end if
+          call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
+              & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
         end if
 
         #:if WITH_TRANSPORT
@@ -871,12 +882,36 @@ contains
               !For ROKS, reuse iROKSIter to determine if tConverged or qInput should be written
               iROKSIter = 1
 
-              write(*,*) '*********AVERAGE**********'
+              if (tROKS) then
+                call reduceCharges(orb, nIneqOrb, iEqOrbitals, qTripOut, qTripOutRed, qBlockOut, &
+                     & iEqBlockDftbu, qiBlockOut, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
+    
+                call reduceCharges(orb, nIneqOrb, iEqOrbitals, qMixOut, qMixOutRed, qBlockOut, &
+                     & iEqBlockDftbu, qiBlockOut, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
+
+                dQOutRed = qTripOutRed - qMixOutRed
+              end if
+
+              write(*,*) '*********ZIEGLER**********'
               call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
                   & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
                   & tReadChrg, qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
                   & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
                   & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS, iROKSIter)
+
+              if (.not. tConverged .and. tROKS) then
+                 qMixInpRed = qInpRed + dQOutRed
+                 qTripInpRed = 2.0_dp*dQOutRed + qInpRed
+
+                 call expandCharges(qTripInpRed, orb, nIneqOrb, iEqOrbitals, qTripIn, qBlockIn,&
+                     & iEqBlockDftbu, species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite,&
+                     & iEqBlockOnSiteLS)
+                 call expandCharges(qMixInpRed, orb, nIneqOrb, iEqOrbitals, qMixIn, qBlockIn,&
+                     & iEqBlockDftbu, species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite,&
+                     & iEqBlockOnSiteLS)
+
+                 
+              end if
 
             end if
 
@@ -888,7 +923,7 @@ contains
             end if
            
             !new triplet qInputs
-            if ((tROKS .and. .not. tConverged) .or. (tNonAufbau .and. iDet == 1)) then
+            if ((tNonAufbau .and. iDet == 1)) then
 
               write(*,*) '**********TRIPLET***********' 
               call getNextInputCharges(env, pChrgMixerTrip, qTripOut, qOutRed, orb, nIneqOrb, iEqOrbitals,&
@@ -905,7 +940,7 @@ contains
 
             end if
             !new mixed qInputs
-            if ((tROKS .and. .not. tConverged) .or. (tNonAufbau .and. iDet == 2)) then
+            if ((tNonAufbau .and. iDet == 2)) then
 
               write(*,*) '**************MIXED*********' 
               call getNextInputCharges(env, pChrgMixerMix, qMixOut, qOutRed, orb, nIneqOrb, iEqOrbitals,&
@@ -915,10 +950,10 @@ contains
                   & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS, iROKSIter)
 
               !New qInput from Ziegler sum
-              qInpRed = 2.0_dp*qMixInpRed - qTripInpRed
-              call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, qBlockIn, iEqBlockDftbu,&
-              & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite,&
-              & iEqBlockOnSiteLS)
+!              qInpRed = 2.0_dp*qMixInpRed - qTripInpRed
+!              call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, qBlockIn, iEqBlockDftbu,&
+!              & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite,&
+!              & iEqBlockOnSiteLS)
               
             end if
 
@@ -4572,12 +4607,13 @@ contains
           & .and. (iSccIter >= minSccIter .or. tReadChrg .or. iGeoStep > 0)
     end if
 
-    !If tROKS, only generate new charges for mixed and triplets
-    if ((.not. tROKS) .or. (tROKS .and. iROKSConv == 2)) then
+    !If tROKS, only generate new charges for the Ziegler sum average charges!
+    if ((.not. tROKS) .or. (tROKS .and. iROKSConv == 1)) then
       if ((.not. tConverged) .and. (iSccIter /= maxSccIter .and. .not. tStopScc)) then
         ! Avoid mixing of spin unpolarised density for spin polarised cases, this is only a problem in
         ! iteration 1, as there is only the (spin unpolarised!) atomic input density at that
         ! point. (Unless charges had been initialized externally)
+        !For tROKS, no mixing on first or second SCC 
         if (((iSCCIter + iGeoStep) == 1 .and. (nSpin > 1 .or. tMixBlockCharges) .and. .not. &
              & tReadChrg) .or. (tROKS .and. iSCCIter <= 2)) then
           qInpRed(:) = qOutRed
