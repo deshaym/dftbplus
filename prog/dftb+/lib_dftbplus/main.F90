@@ -755,6 +755,10 @@ contains
             & indxMOM, prjMOM, fillMOM, iSccIter, tGroundGuess, SSqrTranspose, &
             & identityM, nMOM, tROKS, maxROKSIter, rhoMixPrim, rhoTripPrim)
 
+        if (tROKS) then
+          rhoPrim = 2.0_dp*rhoMixPrim - rhoTripPrim
+        end if
+
         !> For rangeseparated calculations deduct atomic charges from deltaRho
         if (tRangeSep) then
           select case(nSpin)
@@ -774,9 +778,6 @@ contains
         end if
 
         if (tMulliken) then
-          if (tROKS) then
-            rhoPrim = 2.0_dp*rhoMixPrim - rhoTripPrim
-          end if
           call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
               & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
         end if
@@ -931,16 +932,14 @@ contains
                   & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
                   & iEqBlockOnSite, iEqBlockOnSiteLS)
 
-            else
+            else if (.not. tROKS) then
               call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
                   & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
                   & tReadChrg, qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
                   & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
                   & iEqBlockOnSite, iEqBlockOnSiteLS)
-
             end if
             
-
           else
             call getNextInputDensity(SSqrReal, over, neighbourList, nNeighbourSK,&
                 & denseDesc%iAtomStart, iSparseStart, img2CentCell, pChrgMixer, qOutput, orb,&
@@ -4574,44 +4573,37 @@ contains
 
     write(*,10) maxval(abs(qDiffRed))
     
-    !If tROKS, don't check for convergence for mixed and triplet charges
-    if ((.not. tROKS) .or. (iROKSConv == 1)) then
-      sccErrorQ = maxval(abs(qDiffRed))
+    sccErrorQ = maxval(abs(qDiffRed))
 
-      tConverged = (sccErrorQ < sccTol)&
-          & .and. (iSccIter >= minSccIter .or. tReadChrg .or. iGeoStep > 0)
-    end if
+    tConverged = (sccErrorQ < sccTol)&
+        & .and. (iSccIter >= minSccIter .or. tReadChrg .or. iGeoStep > 0)
 
-    !If tROKS, only generate new charges for the Ziegler sum average charges!
-    if ((.not. tROKS) .or. (tROKS .and. iROKSConv == 1)) then
-      if ((.not. tConverged) .and. (iSccIter /= maxSccIter .and. .not. tStopScc)) then
-        ! Avoid mixing of spin unpolarised density for spin polarised cases, this is only a problem in
-        ! iteration 1, as there is only the (spin unpolarised!) atomic input density at that
-        ! point. (Unless charges had been initialized externally)
-        !For tROKS, no mixing on first or second SCC 
-        if (((iSCCIter + iGeoStep) == 1 .and. (nSpin > 1 .or. tMixBlockCharges) .and. .not. &
-             & tReadChrg) .or. (tROKS .and. iSCCIter <= 2)) then
-          qInpRed(:) = qOutRed
-          qInput(:,:,:) = qOutput
-          if (allocated(qBlockIn)) then
-            qBlockIn(:,:,:,:) = qBlockOut
-            if (allocated(qiBlockIn)) then
-              qiBlockIn(:,:,:,:) = qiBlockOut
-            end if
+    if ((.not. tConverged) .and. (iSccIter /= maxSccIter .and. .not. tStopScc)) then
+      ! Avoid mixing of spin unpolarised density for spin polarised cases, this is only a problem in
+      ! iteration 1, as there is only the (spin unpolarised!) atomic input density at that
+      ! point. (Unless charges had been initialized externally)
+      if ((iSCCIter + iGeoStep) == 1 .and. (nSpin > 1 .or. tMixBlockCharges) .and. .not. &
+           & tReadChrg) then
+        qInpRed(:) = qOutRed
+        qInput(:,:,:) = qOutput
+        if (allocated(qBlockIn)) then
+          qBlockIn(:,:,:,:) = qBlockOut
+          if (allocated(qiBlockIn)) then
+            qiBlockIn(:,:,:,:) = qiBlockOut
           end if
-        else
-          call mix(pChrgMixer, qInpRed, qDiffRed)
-        #:if WITH_MPI
-          ! Synchronise charges in order to avoid mixers that store a history drifting apart
-          call mpifx_allreduceip(env%mpi%globalComm, qInpRed, MPI_SUM)
-          qInpRed(:) = qInpRed / env%mpi%globalComm%size
-        #:endif
-          call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, qBlockIn, iEqBlockDftbu,&
-              & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite,&
-              & iEqBlockOnSiteLS)
         end if
-      end if 
-    end if
+      else
+        call mix(pChrgMixer, qInpRed, qDiffRed)
+      #:if WITH_MPI
+        ! Synchronise charges in order to avoid mixers that store a history drifting apart
+        call mpifx_allreduceip(env%mpi%globalComm, qInpRed, MPI_SUM)
+        qInpRed(:) = qInpRed / env%mpi%globalComm%size
+      #:endif
+        call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, qBlockIn, iEqBlockDftbu,&
+            & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite,&
+            & iEqBlockOnSiteLS)
+      end if
+    end if 
 
 
 !    write(*,*) 'qInput'
@@ -4628,7 +4620,6 @@ contains
 !       write(*,10) qInpRed(i)
 !    end do
 
-   
 
   End subroutine getNextInputCharges
 
