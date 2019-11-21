@@ -658,24 +658,24 @@ contains
 !                  write(*,20) tripHam(i,:)
 !               end do
 
-!               call unpackHS(HSqrReal, tripHam(:,1), neighbourList%iNeighbour, nNeighbourSK,&
-!                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-!               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
-!
-!               write(*,*) 'tripHam alpha'
-!               do i = 1, size(HSqrReal,1)
-!                  write(*,10) HSqrReal(i,:)
-!                  10 format(8f10.5)
-!               end do
-!
-!               call unpackHS(HSqrReal, tripHam(:,2), neighbourList%iNeighbour, nNeighbourSK,&
-!                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-!               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
-!               write(*,*) 'tripHam beta'
-!               do i = 1, size(HSqrReal,1)
-!                  write(*,10) HSqrReal(i,:)
-!               end do
-               
+               call unpackHS(HSqrReal, tripHam(:,1), neighbourList%iNeighbour, nNeighbourSK,&
+                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+
+               write(*,*) 'tripHam alpha'
+               do i = 1, size(HSqrReal,1)
+                  write(*,10) HSqrReal(i,:)
+                  10 format(8f10.5)
+               end do
+
+               call unpackHS(HSqrReal, tripHam(:,2), neighbourList%iNeighbour, nNeighbourSK,&
+                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+               write(*,*) 'tripHam beta'
+               do i = 1, size(HSqrReal,1)
+                  write(*,10) HSqrReal(i,:)
+               end do
+              
             else
               call convertToUpDownRepr(mixHam, iHam)
 
@@ -684,24 +684,24 @@ contains
 !                 write(*,20) mixHam(i,:)
 !              end do
 
-!              call unpackHS(HSqrReal, mixHam(:,1), neighbourList%iNeighbour, nNeighbourSK,&
-!                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-!               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
-!
-!               write(*,*) 'mixHam alpha'
-!               do i = 1, size(HSqrReal,1)
-!                  write(*,10) HSqrReal(i,:)
-!               end do
-!
-!               call unpackHS(HSqrReal, mixHam(:,2), neighbourList%iNeighbour, nNeighbourSK,&
-!                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-!               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
-!               write(*,*) 'mixHam beta'
-!               do i = 1, size(HSqrReal,1)
-!                  write(*,10) HSqrReal(i,:)
-!               end do
+              call unpackHS(HSqrReal, mixHam(:,1), neighbourList%iNeighbour, nNeighbourSK,&
+                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
 
-           end if
+               write(*,*) 'mixHam alpha'
+               do i = 1, size(HSqrReal,1)
+                  write(*,10) HSqrReal(i,:)
+               end do
+
+               call unpackHS(HSqrReal, mixHam(:,2), neighbourList%iNeighbour, nNeighbourSK,&
+                    & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+               call blockSymmetrizeHS(HSqrReal, denseDesc%iAtomStart)
+               write(*,*) 'mixHam beta'
+               do i = 1, size(HSqrReal,1)
+                  write(*,10) HSqrReal(i,:)
+               end do
+
+            end if
           else
             call convertToUpDownRepr(ham, iHam)
 
@@ -775,12 +775,7 @@ contains
 
         if (tMulliken) then
           if (tROKS) then
-            call getMullikenPopulation(rhoTripPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
-                & iSparseStart, qTripOut, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
-            call getMullikenPopulation(rhoMixPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
-                & iSparseStart, qMixOut, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
             rhoPrim = 2.0_dp*rhoMixPrim - rhoTripPrim
-!            qOutput = 2.0_dp*qMixOut - qTripOut
           end if
           call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
               & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
@@ -798,6 +793,46 @@ contains
           call getLDual(orbitalL, qiBlockOut, orb, species)
         end if
 
+
+        !New
+        if (tROKS) then
+          call getChargePerShell(qOutput, orb, species, chargePerShell)
+          call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
+              & neighbourList, img2CentCell, spinW, thirdOrd, potential, electrostatics,&
+              & tPoissonTwice, tUpload, shiftPerLUp)
+          !Not necessary?
+!          call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tExtField, tXlbomd,&
+!              & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSk, img2CentCell,&
+!              & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, rangeSep,&
+!              & qDepExtPot, qBlockOut, qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi,&
+!              & iAtInCentralRegion, tFixEf, Ef, onSiteElements, tNonAufbau, iDet, tSpinPurify)
+          call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
+              & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
+              & tReadChrg, qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
+              & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
+              & iEqBlockOnSite, iEqBlockOnSiteLS)
+          
+          call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb,&
+              & iSparseStart, img2CentCell, potential, ham, iHam)
+          call getDensity(env, iSccIter, denseDesc, ham, over, neighbourList, nNeighbourSk,&
+              & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species,&
+              & electronicSolver, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep,&
+              & tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, rangeSep,&
+              & eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal,&
+              & eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr,&
+              & deltaRhoOutSqr, qOutput, nNeighbourLC, tLargeDenseMatrices, tNonAufbau, &
+              & tSpinPurify, tMOM, tIMOM, OldHSqrReal, SSqrRealStorage, Otemp, overlapM, iDet, &
+              & indxMOM, prjMOM, fillMOM, iSccIter, tGroundGuess, SSqrTranspose, &
+              & identityM, nMOM, tROKS, maxROKSIter, rhoMixPrim, rhoTripPrim)
+
+          call getMullikenPopulation(rhoTripPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
+              & iSparseStart, qTripOut, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
+          call getMullikenPopulation(rhoMixPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
+               & iSparseStart, qMixOut, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
+
+        end if
+
+        
         lpROKS2: do iROKSIter = 1, maxROKSIter
         
           ! Note: if XLBOMD is active, potential created with input charges is needed later,
@@ -874,90 +909,37 @@ contains
           
         tStopScc = hasStopFile(fStopScc)
 
+        if (tROKS) then
+          qTripIn = qTripOut
+          qMixIn = qMixOut
+        end if
+              
         ! Mix charges Input/Output
         if (tSccCalc) then
           if(.not. tRangeSep) then
-            if (.not. tNonAufbau) then
+            if ((tNonAufbau .and. iDet == 1)) then
+              call getNextInputCharges(env, pChrgMixerTrip, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
+                  & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
+                  & tReadChrg, qTripIn, qTripInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
+                  & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
+                  & iEqBlockOnSite, iEqBlockOnSiteLS)
 
-              !For ROKS, reuse iROKSIter to determine if tConverged or qInput should be written
-              iROKSIter = 1
+            else if ((tNonAufbau .and. iDet == 2)) then
+              call getNextInputCharges(env, pChrgMixerMix, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
+                  & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
+                  & tReadChrg, qMixIn, qMixInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
+                  & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
+                  & iEqBlockOnSite, iEqBlockOnSiteLS)
 
-              if (tROKS) then
-                call reduceCharges(orb, nIneqOrb, iEqOrbitals, qTripOut, qTripOutRed, qBlockOut, &
-                     & iEqBlockDftbu, qiBlockOut, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
-    
-                call reduceCharges(orb, nIneqOrb, iEqOrbitals, qMixOut, qMixOutRed, qBlockOut, &
-                     & iEqBlockDftbu, qiBlockOut, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
-
-                dQOutRed = qTripOutRed - qMixOutRed
-              end if
-
-              write(*,*) '*********ZIEGLER**********'
+            else
               call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
                   & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
                   & tReadChrg, qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
                   & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
-                  & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS, iROKSIter)
-
-              if (.not. tConverged .and. tROKS) then
-                 qMixInpRed = qInpRed + dQOutRed
-                 qTripInpRed = 2.0_dp*dQOutRed + qInpRed
-
-                 call expandCharges(qTripInpRed, orb, nIneqOrb, iEqOrbitals, qTripIn, qBlockIn,&
-                     & iEqBlockDftbu, species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite,&
-                     & iEqBlockOnSiteLS)
-                 call expandCharges(qMixInpRed, orb, nIneqOrb, iEqOrbitals, qMixIn, qBlockIn,&
-                     & iEqBlockDftbu, species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite,&
-                     & iEqBlockOnSiteLS)
-
-                 
-              end if
+                  & iEqBlockOnSite, iEqBlockOnSiteLS)
 
             end if
-
-            iROKSIter = 2
-            !tNonAufbau doesn't have separate qOutputs
-            if (tNonAufbau) then
-              qTripOut = qOutput
-              qMixOut = qOutput
-            end if
-           
-            !new triplet qInputs
-            if ((tNonAufbau .and. iDet == 1)) then
-
-              write(*,*) '**********TRIPLET***********' 
-              call getNextInputCharges(env, pChrgMixerTrip, qTripOut, qOutRed, orb, nIneqOrb, iEqOrbitals,&
-                  & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
-                  & tReadChrg, qTripIn, qTripInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
-                  & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
-                  & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS, iROKSIter)
-
-              !new mixed inputs for ROKS
-              
-!              qMixIn = (qInput + qTripIn) / 2.0_dp
-!              call reduceCharges(orb, nIneqOrb, iEqOrbitals, qMixIn, qMixInpRed, qBlockOut, iEqBlockDftbu,&
-!                  & qiBlockOut, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
-
-            end if
-            !new mixed qInputs
-            if ((tNonAufbau .and. iDet == 2)) then
-
-              write(*,*) '**************MIXED*********' 
-              call getNextInputCharges(env, pChrgMixerMix, qMixOut, qOutRed, orb, nIneqOrb, iEqOrbitals,&
-                  & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
-                  & tReadChrg, qMixIn, qMixInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
-                  & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
-                  & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS, iROKSIter)
-
-              !New qInput from Ziegler sum
-!              qInpRed = 2.0_dp*qMixInpRed - qTripInpRed
-!              call expandCharges(qInpRed, orb, nIneqOrb, iEqOrbitals, qInput, qBlockIn, iEqBlockDftbu,&
-!              & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite,&
-!              & iEqBlockOnSiteLS)
-              
-            end if
-
-           
+            
 
           else
             call getNextInputDensity(SSqrReal, over, neighbourList, nNeighbourSK,&
@@ -4446,8 +4428,7 @@ contains
   subroutine getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
       & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges, tReadChrg,&
       & qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU, qBlockIn, qiBlockOut,&
-      & iEqBlockDftbuLS, species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS, &
-      & tROKS, iROKSConv)
+      & iEqBlockDftbuLS, species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -4542,12 +4523,6 @@ contains
     !> Equivalences for onsite block corrections if needed for imaginary elements
     integer, intent(in), allocatable :: iEqBlockOnSiteLS(:,:,:,:)
 
-    !> Is this an ROKS calculation
-    logical, intent(in) :: tROKS
-
-    !> If tROKS, is this to determine convergence or new qInputs?
-    integer, intent(in) :: iROKSConv
-    
     real(dp), allocatable :: qDiffRed(:)
     integer :: nSpin
 
