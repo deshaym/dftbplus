@@ -810,6 +810,9 @@ contains
               & tReadChrg, qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
               & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
               & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS)
+          tConverged = (sccErrorQ < sccTol)&
+              & .and. (iSccIter >= minSccIter .or. tReadChrg .or. iGeoStep > 0)
+          
 
           !reset some things?
           call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
@@ -834,6 +837,9 @@ contains
               & tSpinPurify, tMOM, tIMOM, OldHSqrReal, SSqrRealStorage, Otemp, overlapM, iDet, &
               & indxMOM, prjMOM, fillMOM, iSccIter, tGroundGuess, SSqrTranspose, &
               & identityM, nMOM, tROKS, maxROKSIter, rhoMixPrim, rhoTripPrim)
+
+        else if (tROKS) then
+          qOutput = qInput 
 
         end if
 
@@ -922,26 +928,44 @@ contains
         tStopScc = hasStopFile(fStopScc)
 
         if (tROKS) then
-          qTripIn = qTripOut
-          qMixIn = qMixOut
+          call reduceCharges(orb, nIneqOrb, iEqOrbitals, qTripOut, qOutRed, qBlockOut, iEqBlockDftbu,&
+              & qiBlockOut, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
+          call expandCharges(qOutRed, orb, nIneqOrb, iEqOrbitals, qTripIn, qBlockIn, iEqBlockDftbu,&
+              & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite,&
+              & iEqBlockOnSiteLS)
+          call reduceCharges(orb, nIneqOrb, iEqOrbitals, qMixOut, qOutRed, qBlockOut, iEqBlockDftbu,&
+              & qiBlockOut, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
+          call expandCharges(qOutRed, orb, nIneqOrb, iEqOrbitals, qMixIn, qBlockIn, iEqBlockDftbu,&
+              & species0, nUJ, iUJ, niUJ, qiBlockIn, iEqBlockDftbuLS, iEqBlockOnSite,&
+              & iEqBlockOnSiteLS)
+!          qTripIn = qTripOut
+!          qMixIn = qMixOut
         end if
-              
+
+        if (tNonAufbau) then
+          qTripOut = qOutput
+          qMixOut = qOutput
+        end if
+
+        
         ! Mix charges Input/Output
         if (tSccCalc) then
           if(.not. tRangeSep) then
-            if ((tNonAufbau .and. iDet == 1)) then
-              call getNextInputCharges(env, pChrgMixerTrip, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
-                  & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
-                  & tReadChrg, qTripIn, qTripInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
-                  & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
-                  & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS)
-
-            else if ((tNonAufbau .and. iDet == 2)) then
-              call getNextInputCharges(env, pChrgMixerMix, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
-                  & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
-                  & tReadChrg, qMixIn, qMixInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
-                  & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
-                  & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS)
+            if (tNonAufbau) then
+              if ((tNonAufbau .and. iDet == 1)) then
+                call getNextInputCharges(env, pChrgMixerTrip, qTripOut, qOutRed, orb, nIneqOrb, iEqOrbitals,&
+                    & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
+                    & tReadChrg, qTripIn, qTripInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
+                    & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
+                    & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS)
+              end if
+              if ((tNonAufbau .and. iDet == 2)) then
+                call getNextInputCharges(env, pChrgMixerMix, qMixOut, qOutRed, orb, nIneqOrb, iEqOrbitals,&
+                    & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
+                    & tReadChrg, qMixIn, qMixInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
+                    & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
+                    & iEqBlockOnSite, iEqBlockOnSiteLS, tROKS)
+              end if
 
             else if (.not. tROKS) then
               call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
@@ -4544,6 +4568,7 @@ contains
 
     nSpin = size(qOutput, dim=3)
 
+    write(*,*) 'gNIC called'
     
     call reduceCharges(orb, nIneqOrb, iEqOrbitals, qOutput, qOutRed, qBlockOut, iEqBlockDftbu,&
          & qiBlockOut, iEqBlockDftbuLS, iEqBlockOnSite, iEqBlockOnSiteLS)
@@ -4588,8 +4613,12 @@ contains
 
     sccErrorQ = maxval(abs(qDiffRed))
 
-    tConverged = (sccErrorQ < sccTol)&
-        & .and. (iSccIter >= minSccIter .or. tReadChrg .or. iGeoStep > 0)
+    write(*,*) 'sccErrorQ',sccErrorQ
+
+    if (.not. tROKS) then
+      tConverged = (sccErrorQ < sccTol)&
+          & .and. (iSccIter >= minSccIter .or. tReadChrg .or. iGeoStep > 0)
+    end if
 
     if ((.not. tConverged) .and. (iSccIter /= maxSccIter .and. .not. tStopScc)) then
       ! Avoid mixing of spin unpolarised density for spin polarised cases, this is only a problem in
