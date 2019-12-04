@@ -552,7 +552,7 @@ contains
             & eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal,&
             & eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr,&
             & deltaRhoOutSqr, qOutput, nNeighbourLC, tLargeDenseMatrices, tNonAufbau, &
-            & tSpinPurify, iDet)
+            & tSpinPurify, iDet, mixHSR)
 
         !> For rangeseparated calculations deduct atomic charges from deltaRho
         if (tRangeSep) then
@@ -2019,7 +2019,7 @@ contains
       & tempElec, nEl, parallelKS, Ef, mu, energy, rangeSep, eigen, filling, rhoPrim, Eband, TS,&
       & E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
       & eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput, nNeighbourLC,&
-      & tLargeDenseMatrices, tNonAufbau, tSpinPurify, iDet)
+      & tLargeDenseMatrices, tNonAufbau, tSpinPurify, iDet, mixHSR)
 
 
     !> Environment settings
@@ -2188,6 +2188,9 @@ contains
     !> Is this a spin purified calculation?
     logical, intent(in) :: tSpinPurify
     integer, intent(in) :: iDet
+    
+    !> Storage of mixed excited state MO coefficients for TDM
+    real(dp), intent(out) :: mixHSR(:,:)
 
     integer :: nSpin, iKS, iSp, iK, nAtom
     complex(dp), allocatable :: rhoSqrCplx(:,:)
@@ -2232,7 +2235,7 @@ contains
           & tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, energy, rangeSep, eigen,&
           & filling, rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal,&
           & iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr,&
-          & qOutput, nNeighbourLC, tNonAufbau, tSpinPurify, iDet)
+          & qOutput, nNeighbourLC, tNonAufbau, tSpinPurify, iDet, mixHSR)
 
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
 
@@ -2255,7 +2258,7 @@ contains
       & tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, energy, rangeSep, eigen, filling,&
       & rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim,&
       & HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput,&
-      & nNeighbourLC, tNonAufbau, tSpinPurify, iDet)
+      & nNeighbourLC, tNonAufbau, tSpinPurify, iDet, mixHSR)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2414,7 +2417,12 @@ contains
     !> Is this a spin purified calculation?
     logical, intent(in) :: tSpinPurify
     integer, intent(in) :: iDet
+    
+    !> Storage of mixed excited state MO coefficients for TDM
+    real(dp), intent(out) :: mixHSR(:,:)
+    
     integer :: nSpin
+    logical :: tDips
     
     nSpin = size(ham, dim=2)
 
@@ -2463,6 +2471,10 @@ contains
       filling(:,:,1) = 0.5_dp * filling(:,:,1)
     end if
     call env%globalTimer%stopTimer(globalTimers%densityMatrix)
+    
+    if (tDips .and. iDet==1) then
+      call tDipStore(HSqrReal,mixHSR)
+    end if
 
   end subroutine getDensityFromDenseDiag
 

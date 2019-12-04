@@ -29,6 +29,7 @@ module dftbp_sparse2dense
   public :: unpackHS, packHS, iPackHS, packErho
   public :: blockSymmetrizeHS, blockHermitianHS, blockAntiSymmetrizeHS
   public :: packHSPauli, packHSPauliImag, unpackHPauli, unpackSPauli
+  public :: tDipStore, correspondingOrbitalTransformation
 
 #:if WITH_SCALAPACK
   public :: unpackHSRealBlacs, unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs
@@ -2370,5 +2371,21 @@ contains
   end subroutine packERhoPauliBlacs
 
 #:endif
+
+  subroutine tDipStore(HSqrReal, mixHSR)
+
+
+  real (dp), intent(in) :: HSqrReal(:,:)
+  real (dp), intent(out) :: mixHSR(:,:)
+  mixHSR=HSqrReal
+
+  end subroutine tDipStore
+
+
+  subroutine correspondingOrbitalTransformation
+
+
+
+  end subroutine correspondingOrbitalTransformation
 
 end module dftbp_sparse2dense

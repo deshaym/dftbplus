@@ -481,6 +481,8 @@ module dftbp_inputdata_module
     !> GroundGuess
     logical :: tGroundGuess = .false.
 
+    !> TDM Calculation
+    logical :: tDips = .false.
 
 
 

@@ -1211,6 +1211,7 @@ contains
     call getChildValue(node, "NonAufbau", ctrl%tNonAufbau, .false.)
     call getChildValue(node, "SpinPurify", ctrl%tSpinPurify, .true.)
     call getChildValue(node, "GroundGuess", ctrl%tGroundGuess, .false.)
+    call getChildValue(node, "TDM", ctrl%tDips, .false.)
 
     ! Read in maximal angular momenta or selected shells
     do ii = 1, maxL+1

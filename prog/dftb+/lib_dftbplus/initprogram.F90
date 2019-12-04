@@ -979,6 +979,11 @@ module dftbp_initprogram
   !> Should there be a ground state intial guess before Non-Aufbau calc?
   logical :: tGroundGuess
 
+  !> Calculate transition dipole moment (TDM)?
+  logical :: tDips
+  
+  !> Storage of mixed excited state MO coefficients for TDM
+  real(dp), allocatable :: mixHSR(:,:)
 
   !> Which state is being calculated in the determinant loop?
   integer :: iDet
@@ -1147,6 +1152,10 @@ contains
     end if
     nIndepHam = nSpin
 
+    if (tDips) then
+      tGroundGuess=.true.
+    end if
+    
     tSpinSharedEf = input%ctrl%tSpinSharedEf
     tSpinOrbit = input%ctrl%tSpinOrbit
     tDualSpinOrbit = input%ctrl%tDualSpinOrbit
@@ -2524,7 +2533,8 @@ contains
         & indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs,&
         & chrgForces, energy, potential, TS, E0, Eband, eigen, filling, coord0Fold, newCoords,&
         & orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal,&
-        & chargePerShell, occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
+        & chargePerShell, occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment, &
+        & mixHSR)
 
   #:if WITH_TRANSPORT
     ! note, this has the side effect of setting up module variable transpar as copy of
@@ -3287,7 +3297,8 @@ contains
     @:SAFE_DEALLOC(tunneling, ldos, current, leadCurrents, poissonDerivs, shiftPerLUp, chargeUp)
     @:SAFE_DEALLOC(regionLabelLDOS)
     @:SAFE_DEALLOC(iAtInCentralRegion, energiesCasida)
-
+    @:SAFE_DEALLOC(mixHSR)
+        
   end subroutine destructProgramVariables
 
 
@@ -3592,7 +3603,8 @@ contains
       & indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs,&
       & chrgForces, energy, potential, TS, E0, Eband, eigen, filling, coord0Fold, newCoords,&
       & orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal,&
-      & chargePerShell, occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
+      & chargePerShell, occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment,&
+      & mixHSR)
 
     !> Current environment
     type(TEnvironment), intent(in) :: env
@@ -3761,6 +3773,9 @@ contains
 
     !> system dipole moment
     real(dp), intent(out), allocatable :: dipoleMoment(:)
+    
+    !> Storage of mixed excited state MO coefficients for TDM
+    real(dp), intent(out), allocatable :: mixHSR(:,:)
 
 
     integer :: nSpinHams, sqrHamSize
@@ -3845,7 +3860,7 @@ contains
     end if
     if (tLargeDenseMatrices) then
       call allocateDenseMatrices(env, denseDesc, parallelKS%localKS, t2Component, tRealHS,&
-          & HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigvecsReal)
+          & HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigvecsReal, mixHSR)
     end if
 
     if (tRangeSep) then
@@ -4043,7 +4058,7 @@ contains
 
   !> Set up storage for dense matrices, either on a single processor, or as BLACS matrices
   subroutine allocateDenseMatrices(env, denseDesc, localKS, t2Component, tRealHS, HSqrCplx,&
-      & SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal)
+      & SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, mixHSR)
 
     !> Computing environment
     type(TEnvironment), intent(in) :: env
@@ -4078,6 +4093,8 @@ contains
     !> Eigenvectors for real eigenproblem
     real(dp), allocatable, intent(out) :: eigvecsReal(:,:,:)
 
+    !> Storage of mixed excited state MO coefficients for TDM
+    real(dp), allocatable, intent(out) :: mixHSR(:,:)
 
     integer :: nLocalCols, nLocalRows, nLocalKS
 
@@ -4097,6 +4114,7 @@ contains
       allocate(HSqrReal(nLocalRows, nLocalCols))
       allocate(SSqrReal(nLocalRows, nLocalCols))
       allocate(eigVecsReal(nLocalRows, nLocalCols, nLocalKS))
+      allocate(mixHSR(nLocalRows, nLocalCols))
     end if
 
   end subroutine allocateDenseMatrices
