@@ -368,7 +368,7 @@ contains
   !> Ref: G. Kresse and J. Furthm&uuml;ller, Phys. Rev. B vol 54, pp 11169 (1996).
   !> Ref: M. Methfessel and A. T. Paxton,, Phys. Rev. B vol 40, pp 3616 (1989).
   !> Ref: F. Wagner, Th.\ Laloyaux and M. Scheffler, Phys. Rev. B, vol 57 pp 2102 (1998).
-  subroutine electronFill(Eband, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeights, tNonAufbau, &
+  subroutine electronFill(Eband, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeights, tNonAufbau,&
              & tSpinPurify, iDet, nEl, iS)
 
     !> Band structure energy at T
@@ -481,7 +481,7 @@ contains
       TS = TS * kT
       E0(:) = (real(MPorder + 1,dp) * (Eband - TS) + Eband) / real(MPorder + 2, dp)
     else
-! TI-DFTB Non-Aufbau filling routine
+      ! TI-DFTB Non-Aufbau filling routine
       if (tNonAufbau) then
         allocate(tmpMtx(size(eigenvals, dim=1),kpts,size(eigenvals, dim=3)))
         tmpMtx=eigenvals
@@ -514,7 +514,7 @@ contains
 #:else
             filling(j, i, iSpin) = 1.0_dp / (1.0_dp + exp(x))
 #:endif
-            if (tNonAufbau .and. j/=1 .and. ((filling(j, i, iSpin)+filling(j-1, i, iSpin))) <= elecTol) then
+            if (tNonAufbau .and. j/=1 .and. ((filling(j, i, iSpin)+filling(max(j-1,1), i, iSpin))) <= elecTol) then
               exit
             else if (filling(j, i, iSpin)<=elecTol .and. .not. tNonAufbau) then
              exit
