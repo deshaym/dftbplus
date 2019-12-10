@@ -2471,9 +2471,14 @@ contains
       filling(:,:,1) = 0.5_dp * filling(:,:,1)
     end if
     call env%globalTimer%stopTimer(globalTimers%densityMatrix)
-    
-    if (tDips .and. iDet==1) then
-      call tDipStore(HSqrReal,mixHSR)
+    write(*,*) 'TDM', TDips
+    if (tDips) then
+      if(iDet==0) then !save ground MO
+        call tDipStore(HSqrReal,mixHSR)
+      else if ((tSpinPurify.and.iDet==2).or.(.not.tSpinPurify.and.iDet==1))then!overlap w mixed
+        write(*,*) 'COT'
+        call correspondingOrbitalTransformation(HSqrReal,mixHSR)
+      end if
     end if
 
   end subroutine getDensityFromDenseDiag

@@ -1153,6 +1153,7 @@ contains
     nIndepHam = nSpin
 
     if (tDips) then
+      tNonAufbau=.true.
       tGroundGuess=.true.
     end if
     

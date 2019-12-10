@@ -241,8 +241,8 @@ sparse2dense.o = sparse2dense.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp
 _mod_dftbp_sparse2dense: sparse2dense.o
 _mod_dftbp_sparse2dense = $(sparse2dense.o)
 #:else
-sparse2dense.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_periodic _mod_dftbp_commontypes _mod_dftbp_densedescr _mod_dftbp_memman _mod_dftbp_constants
-sparse2dense.o = sparse2dense.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_periodic) $(_mod_dftbp_commontypes) $(_mod_dftbp_densedescr) $(_mod_dftbp_memman) $(_mod_dftbp_constants)
+sparse2dense.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_periodic _mod_dftbp_commontypes _mod_dftbp_densedescr _mod_dftbp_memman _mod_dftbp_constants _mod_dftbp_lapackroutines
+sparse2dense.o = sparse2dense.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_periodic) $(_mod_dftbp_commontypes) $(_mod_dftbp_densedescr) $(_mod_dftbp_memman) $(_mod_dftbp_constants) $(_mod_dftbp_lapackroutines)
 _mod_dftbp_sparse2dense: sparse2dense.o
 _mod_dftbp_sparse2dense = $(sparse2dense.o)
 #:endif

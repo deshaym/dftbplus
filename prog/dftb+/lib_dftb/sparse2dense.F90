@@ -19,6 +19,7 @@ module dftbp_sparse2dense
   use dftbp_sorting
   use dftbp_periodic, only : TNeighbourList
   use dftbp_densedescr
+  use dftbp_lapackroutines
 #:if WITH_SCALAPACK
   use dftbp_scalapackfx
   use dftbp_blacsenv
@@ -2382,10 +2383,45 @@ contains
   end subroutine tDipStore
 
 
-  subroutine correspondingOrbitalTransformation
-
-
-
+  subroutine correspondingOrbitalTransformation(HSqrReal,mixHSR)
+  real (dp), intent(in) :: HSqrReal(:,:)
+  real (dp), intent(inout) :: mixHSR(:,:)
+  real (dp), allocatable :: ground(:,:)
+  real (dp), allocatable :: U(:,:)
+  real (dp), allocatable :: Vt(:,:)
+  real (dp), allocatable :: sigma(:)
+  real (dp), allocatable :: Seg(:,:)
+  real (dp), allocatable :: A(:,:)
+  real (dp), allocatable :: B(:,:)
+  real (dp), allocatable :: C(:,:)     
+  real (dp), allocatable :: D(:,:)  
+  integer :: i, j, n
+  allocate(ground(size(mixHSR, dim=1),size(mixHSR, dim=2)))
+  allocate(U(size(mixHSR, dim=1),size(mixHSR, dim=2)))
+  allocate(Vt(size(mixHSR, dim=1),size(mixHSR, dim=2)))
+  allocate(sigma(size(mixHSR, dim=1)))
+  allocate(Seg(size(mixHSR,dim=1),size(mixHSR,dim=2)))
+  allocate(A(size(mixHSR,dim=1),size(mixHSR,dim=2)))
+  allocate(B(size(mixHSR,dim=1),size(mixHSR,dim=2)))
+  allocate(C(size(mixHSR,dim=1),size(mixHSR,dim=2))) 
+  allocate(D(size(mixHSR,dim=1),size(mixHSR,dim=2)))   
+  ground=mixHSR
+  mixHSR=matmul(transpose(HSqrReal),ground)
+  C=mixHSR
+  call gesvd(mixHSR,U,sigma,Vt)
+  Seg=matmul(transpose(matmul(U,HSqrReal)),matmul(Vt,ground))
+ ! do i=1,ubound(Seg,1)
+ !   print *, i, Seg(i,:)
+ ! end do
+  forall( i = 1:n, j = 1:n) D(i,j) = (i/j)*(j/i)
+  mixHSR=C
+!  Seg=matmul(D,sigma)
+  A=matmul(D,transpose(U))
+  B=matmul(transpose(Vt),A)
+  C=mixHSR-B
+  do i=1,ubound(D,1)
+    print *, i, D(i,:)
+  end do
   end subroutine correspondingOrbitalTransformation
 
 end module dftbp_sparse2dense
