@@ -36,6 +36,8 @@ contributed to DFTB+ :
 
 * Tim Kowalczyk (Western Washington University) 
 
+* In Seong Lee (Ulsan National Institute of Science and Technology, Repubic of Korea)
+
 * Thomas Niehaus (University of Lyon, France)
 
 * Alessandro Pecchia (University of Rome "Tor Vergata", Italy)
