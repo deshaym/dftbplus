@@ -1,6 +1,6 @@
 Geometry = GenFormat {
-   30  C
-   C  H  N  O
+    30  C
+    C  H  N  O
     1 1    0.3973710047E+01   -0.1540717401E+01    0.6465481762E-01
     2 1    0.2840323860E+01   -0.7130402111E+00    0.6461006030E-01
     3 1    0.2935292845E+01    0.7115834289E+00    0.6463651089E-01
@@ -33,60 +33,64 @@ Geometry = GenFormat {
    30 1    0.7120509803E+00    0.4717173312E-01    0.6453550043E-01
 }
 
-Driver = ConjugateGradient{
-  MaxSteps = 10000
-  AppendGeometries = Yes
-  OutputPrefix = 'deltaDFTBindigo'
+Driver = ConjugateGradient {
+    AppendGeometries = Yes
+    OutputPrefix = 'deltaDFTBindigo'
 }
 
-Hamiltonian = DFTB{
+Hamiltonian = DFTB {
 
-  NonAufbau=Yes
-  GroundGuess=Yes
+    NonAufbau = Yes
+    GroundGuess = Yes
   
-  Charge = 0 
-  SCC = Yes
-  SpinPolarisation = Colinear {
-  UnpairedElectrons = 0 
-  }
-  SpinConstants = {
-    H = {
-      -0.072
+    Charge = 0
+    SCC = Yes
+    SpinPolarisation = Colinear {
+        UnpairedElectrons = 0
     }
-    C = {
-      -0.023
+    SpinConstants = {
+        H = {
+            -0.072
+        }
+        C = {
+            -0.023
+        }
+        N = {
+            -0.026
+        }
+        O = {
+            -0.028
+        }
     }
-    N = {
-      -0.026
+    MaxAngularMomentum = {
+        H = "s"
+        C = "p"
+        N = "p"
+        O = "p"
     }
-    O = {
-      -0.028
-    }
-  }
-  MaxAngularMomentum = {
-    H = "s"
-    C = "p"
-    N = "p"
-    O = "p"
-  }
 
-  SlaterKosterFiles = {
-    C-N = "C-N.skf"
-    C-H = "C-H.skf"
-    C-C = "C-C.skf"
-    C-O = "C-O.skf"
-    H-C = "H-C.skf"
-    H-H = "H-H.skf"
-    H-N = "H-N.skf"
-    H-O = "H-O.skf"
-    O-H = "O-H.skf"
-    O-O = "O-O.skf"
-    O-C = "O-C.skf"
-    O-N = "O-N.skf"    
-    N-N = "N-N.skf"
-    N-O = "N-O.skf"
-    N-H = "N-H.skf"
-    N-C = "N-C.skf"
-  }
+    SlaterKosterFiles = Type2FileNames {
+        Separator = "-"
+        Suffix = ".skf"
+    }
+
 }
 
+Analysis = {
+    CalculateForces = Yes
+    MullikenAnalysis = Yes
+}
+
+Options = {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 8
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
