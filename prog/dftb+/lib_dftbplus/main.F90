@@ -163,18 +163,22 @@ contains
           & .and. needsRestartWriting(tGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq)
       call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
 
-    ! TI-DFTB Determinant Loop
-    ! Will pass though once if unless specified in input
+      ! TI-DFTB Determinant Loop
+      ! Will pass though once if unless specified in input
       lpDets : do iDet = det, nDet
+
         call processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopDriver, tStopScc,&
             & tExitGeoOpt)
+
         if (tGroundGuess .and. iDet==0) then
           call printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau,&
               & tSpinPurify, tGroundGuess, iDet)
         end if
+
         if (iDet == nDet) then
           exit lpDets
         end if
+
       end do lpDets
 
       if (tNonAufbau) then
@@ -489,11 +493,11 @@ contains
       call electronicSolver%elsi%initPexsiDeltaVRanges(tSccCalc, potential)
     end if
 
-    call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged, tNegf)
-
     call env%globalTimer%stopTimer(globalTimers%preSccInit)
 
     call env%globalTimer%startTimer(globalTimers%scc)
+
+    call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged, tNegf)
 
     lpSCC: do iSccIter = 1, maxSccIter
 
@@ -649,7 +653,6 @@ contains
         if (tNegf) then
           call printSccHeader()
         end if
-        call printSccInfo(tDftbU, iSccIter, energy%Eelec, diffElec, sccErrorQ)
 
         if (tNegf) then
           call printBlankLine()
@@ -3226,6 +3229,8 @@ contains
 
     !> Which state is being calculated? 1 = triplet, 2 = mixed !-MYD
     integer, intent(in) :: iDet
+
+    !> Number of electrons in each spin channel
     real(dp), intent(in) :: nEl(:)
 
     real(dp) :: EbandTmp(1), TSTmp(1), E0Tmp(1)
@@ -3265,8 +3270,8 @@ contains
       do iS = 1, nSpinHams
         do iK = 1, nKPoints
           call Efilling(EbandTmp, EfTmp, TSTmp, E0Tmp, fillings(:, iK:iK, iS:iS),&
-              & eigvals(:, iK:iK, iS:iS), nElecFill(iS), tempElec, [1.0_dp], iDistribFn, tNonAufbau, &
-              & tSpinPurify, iDet, nEl, iS)
+              & eigvals(:, iK:iK, iS:iS), nElecFill(iS), tempElec, [1.0_dp], iDistribFn,&
+              & tNonAufbau, tSpinPurify, iDet, nEl, iS)
           Eband(iS) = Eband(iS) + EbandTmp(1) * kWeights(iK)
           Ef(iS) = Ef(iS) + EfTmp * kWeights(iK)
           TS(iS) = TS(iS) + TSTmp(1) * kWeights(iK)
@@ -3274,8 +3279,7 @@ contains
         end do
       end do
     else
-      ! Every spin channel (but no the k-points) filled up individually
-
+      ! Every spin channel (but not the k-points) filled up individually
       do iS = 1, nSpinHams
         call Efilling(Eband(iS:iS), Ef(iS), TS(iS:iS), E0(iS:iS), fillings(:,:,iS:iS),&
             & eigvals(:,:,iS:iS), nElecFill(iS), tempElec, kWeights, iDistribFn, tNonAufbau,&

@@ -2281,6 +2281,7 @@ contains
 
   !> Open file detailed.out
   subroutine openDetailedOut(fd, fileName, tAppendDetailedOut, iGeoStep, iSccIter, iDet)
+
     !> File  ID
     integer, intent(in) :: fd
 
@@ -3722,7 +3723,8 @@ contains
 
 
   !> Prints current total energies
-  subroutine printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau, tSpinPurify, tGroundGuess, iDet)
+  subroutine printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau, tSpinPurify,&
+      & tGroundGuess, iDet)
 
     !> energy components
     type(TEnergies), intent(in) :: energy
@@ -3744,18 +3746,22 @@ contains
 
     !> Should there be a ground state intial guess before Non-Aufbau calc?
     logical, intent(in), optional :: tGroundGuess
-    integer, intent(in), optional :: iDet
 
+    !> Which determinant is being calculated
+    integer, intent(in), optional :: iDet
 
 
     write(stdOut, *)
     if (tNonAufbau) then
-      if (tGroundGuess .and. iDet==0) then
+    @:ASSERT(present(iDet))
+      if (tGroundGuess .and. iDet == 0) then
         write (stdOut, format2U) 'Ground State Energy Guess', energy%Egroundguess, "H", &
           & Hartree__eV * energy%Egroundguess, "eV"
       else if (tSpinPurify) then
-        write (stdOut, format2U) 'Triplet Energy', energy%Etriplet, "H", Hartree__eV * energy%Etriplet, "eV"
-        write (stdOut, format2U) 'Mixed Energy', energy%Emixed, "H", Hartree__eV * energy%Emixed, "eV"
+        write (stdOut, format2U) 'Triplet Energy', energy%Etriplet, "H",&
+            & Hartree__eV * energy%Etriplet, "eV"
+        write (stdOut, format2U) 'Mixed Energy', energy%Emixed, "H", Hartree__eV * energy%Emixed,&
+            & "eV"
         write (stdOut, format2U) 'Spin Purified Energy', energy%Etotal, "H", &
           & Hartree__eV * energy%Etotal, "eV"
         if (tGroundGuess) then
@@ -3763,15 +3769,15 @@ contains
             & Hartree__eV * energy%Egroundguess, "eV"
         end if
       else
-        write (stdOut, format2U) 'Non-Aufbau Singlet Energy', energy%Etotal, "H", Hartree__eV * energy%Etotal,&
-          & "eV"
+        write (stdOut, format2U) 'Non-Aufbau Singlet Energy', energy%Etotal, "H",&
+            & Hartree__eV * energy%Etotal, "eV"
         if (tGroundGuess) then
           write (stdOut, format2U) 'Ground State Energy Guess', energy%Egroundguess, "H", &
           & Hartree__eV * energy%Etotal, "eV"
         endif
       end if
     else
-      write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
+      write(stdOut, format2U) "Total Energy", energy%Etotal, "H", Hartree__eV * energy%Etotal, "eV"
       if (electronicSolver%providesEigenvals) then
         write(stdOut, format2U) "Extrapolated to 0", energy%Ezero, "H", Hartree__eV * energy%Ezero,&
             & "eV"
