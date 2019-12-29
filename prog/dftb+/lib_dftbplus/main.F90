@@ -495,7 +495,7 @@ contains
 
     call env%globalTimer%startTimer(globalTimers%scc)
 
-lpSCC: do iSccIter = 1, maxSccIter
+    lpSCC: do iSccIter = 1, maxSccIter
 
       call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
 
@@ -654,6 +654,7 @@ lpSCC: do iSccIter = 1, maxSccIter
         if (tNegf) then
           call printBlankLine()
         end if
+        call printSccInfo(tDftbU, iSccIter, energy%Eelec, diffElec, sccErrorQ)
 
         tWriteSccRestart = env%tGlobalMaster .and. &
             & needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter,&
@@ -661,6 +662,7 @@ lpSCC: do iSccIter = 1, maxSccIter
         if (tWriteSccRestart) then
           call writeCharges(fCharges, tWriteChrgAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn)
         end if
+
       end if
 
       if (tWriteDetailedOut) then
