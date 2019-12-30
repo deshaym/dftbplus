@@ -381,7 +381,7 @@ module dftbp_initprogram
   logical :: tSetFillingTemp
 
   !> Choice of electron distribution function, defaults to Fermi
-  integer :: iDistribFn = 0
+  integer :: iDistribFn = Fermi
 
   !> atomic kinetic temperature
   real(dp) :: tempAtom
@@ -1807,6 +1807,9 @@ contains
     if (.not. electronicSolver%providesEigenvals .and. tNonAufbau) then
       call error("Only electronic solvers which generate eigenvalues can be used with non-Aufbau&
           & fillings")
+    end if
+    if (iDistribFn /= Fermi .and. tNonAufbau) then
+      call error("Fermi filling is required for non-Aufbau occupations")
     end if
 
     if (electronicSolver%isElsiSolver) then
