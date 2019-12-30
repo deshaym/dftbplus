@@ -1804,6 +1804,11 @@ contains
     end if
     call TElectronicSolver_init(electronicSolver, input%ctrl%solver%iSolver, nBufferedCholesky)
 
+    if (.not. electronicSolver%providesEigenvals .and. tNonAufbau) then
+      call error("Only electronic solvers which generate eigenvalues can be used with non-Aufbau&
+          & fillings")
+    end if
+
     if (electronicSolver%isElsiSolver) then
       @:ASSERT(parallelKS%nLocalKS == 1)
 
