@@ -8,6 +8,7 @@ non-scc/Si_384_GPU                     #? WITH_GPU and not WITH_MPI
 scc/SiC_512_GPU                        #? WITH_GPU and not WITH_MPI
 
 deltadftb/indigo                       #? MPI_PROCS <= 4
+deltadftb/indigo_nopurify              #? MPI_PROCS <= 4
 
 rangesep/C18H12-force                  #? not WITH_MPI
 rangesep/C18H12-nbscreening            #? not WITH_MPI

@@ -171,7 +171,7 @@ contains
         call processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopDriver, tStopScc,&
             & tExitGeoOpt)
 
-        if (tGroundGuess .and. iDet==0) then
+        if (tGroundGuess .and. iDet == 0) then
           call printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau,&
               & tSpinPurify, tGroundGuess, iDet)
         end if
@@ -1667,31 +1667,35 @@ contains
   end subroutine initSccLoop
 
 
-  !> Initialised TI-DFTB conditions for determinant loop
-  subroutine initTIDFTB(tSpinPurify, tGroundGuess, nDet, det)
+  !> Initialised Time-independent excited state DFTB (TI-DFTB) conditions for determinant loop
+  subroutine initTIDFTB(tSpinPurify, tGroundGuess, stopDeterminant, startDeterminant)
 
-  !> Is this a spin purified calculation?
-  logical, intent(in) :: tSpinPurify
+    !> Is this a spin purified calculation?
+    logical, intent(in) :: tSpinPurify
 
-  !> Should there be a ground state intial guess before Non-Aufbau calc?
-  logical, intent(in) :: tGroundGuess
+    !> Should there be a ground state intial guess before Non-Aufbau calc?
+    logical, intent(in) :: tGroundGuess
 
-  !> Which state is being calculated? 1 = triplet, 2 = mixed
-  integer, intent(out) :: nDet
-  integer, intent(out) :: det
+    !> Which state is being calculated? 1 = triplet, 2 = mixed
+    integer, intent(out) :: stopDeterminant
 
-      if (tGroundGuess) then
-        det = 0
-      else
-        det = 1
-      end if
-      if (tSpinPurify) then
-        nDet = 2
-      else
-        nDet = 1
-      end if
+    !> First determinant to calculate
+    integer, intent(out) :: startDeterminant
+
+    if (tGroundGuess) then
+      startDeterminant = 0
+    else
+      startDeterminant = 1
+    end if
+
+    if (tSpinPurify) then
+      stopDeterminant = 2
+    else
+      stopDeterminant = 1
+    end if
 
   end subroutine initTIDFTB
+
 
   !> Reset internal potential related quantities
   subroutine resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)

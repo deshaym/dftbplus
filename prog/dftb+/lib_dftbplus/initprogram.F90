@@ -991,8 +991,12 @@ module dftbp_initprogram
 
   !> Which state is being calculated in the determinant loop?
   integer :: iDet
-  integer :: nDet =1
-  integer :: det =1
+
+  !> Final determinant to evaluate
+  integer :: nDet = 1
+
+  !> First determinant to evaluate
+  integer :: det = 1
 
   !> Is this DFTB/SSR formalism
   logical :: tREKS
@@ -1135,10 +1139,6 @@ contains
 
     !> Format for two using exponential notation values with units
     character(len=*), parameter :: format2Ue = "(A, ':', T30, E14.6, 1X, A, T50, E14.6, 1X, A)"
-
-    !> Which state is being calculated in the determinant loop?
-    integer :: iDet
-    integer :: nDet =1
 
     @:ASSERT(input%tInitialized)
 
