@@ -541,7 +541,7 @@ contains
             & cellVec, ham, iHam)
       end if
 
-<<<<<<< HEAD
+
         call convertToUpDownRepr(ham, iHam)
 
         call getDensity(env, iSccIter, denseDesc, ham, over, neighbourList, nNeighbourSk,&
@@ -566,9 +566,9 @@ contains
             call error("Range separation not implemented for non-colinear spin")
           end select
         end if
-=======
+
       call convertToUpDownRepr(ham, iHam)
->>>>>>> deltaDFTB_clean
+
 
       call getDensity(env, iSccIter, denseDesc, ham, over, neighbourList, nNeighbourSk,&
           & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species,&
